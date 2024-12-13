@@ -1,5 +1,7 @@
+#pragma once
+
 #include "common.hpp"
-#include <vulkan/vulkan_core.h>
+
 
 namespace HelloTriangle {
     struct QueueFamilyIndices {
@@ -12,11 +14,17 @@ namespace HelloTriangle {
 
     class create_device {
         public:
-        void find_physical_device(VkInstance instance);
+        create_device();
+        ~create_device();
+        void find_physical_device(VkInstance instance, VkSurfaceKHR surface);
         void create_logical_device(VkSurfaceKHR surface);
+        VkPhysicalDevice& get_physical_device() {return physicalDevice;;}
         VkDevice& get_device() {return device;}
         VkQueue& get_graphics_queue() {return graphicsQueue;}
         VkQueue& get_present_queue() {return presentQueue;}
+        static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
+       
+
         private:
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         
@@ -24,8 +32,7 @@ namespace HelloTriangle {
         VkQueue graphicsQueue;
         VkQueue presentQueue;
 
-        bool isDeviceSuitable(VkPhysicalDevice device);
+        bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface);
         bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
     };
 }

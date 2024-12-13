@@ -1,7 +1,10 @@
+#pragma once
+
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <ios>
+
 #include "third_party/volk.h"
 #define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
@@ -16,6 +19,16 @@
 #include <algorithm>
 #include <limits>
 #include <fstream>
+
+
+#ifdef NDEBUG
+    const bool enableValidationLayers = false; 
+#else
+    const bool enableValidationLayers = true;
+#endif
+
+
+#define MAX_FRAMES_IN_FLIGHT 2
 
 namespace HelloTriangle {
 

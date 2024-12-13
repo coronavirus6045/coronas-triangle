@@ -9,3 +9,8 @@ init_window::init_window(int init_width, int init_height, const char* window_tit
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 }
+
+void init_window::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+        auto app = reinterpret_cast<init_window*>(glfwGetWindowUserPointer(window));
+        app ->framebufferResized = true;
+}

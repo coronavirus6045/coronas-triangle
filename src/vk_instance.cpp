@@ -1,12 +1,16 @@
+
+
 #include "vk_instance.hpp"
-#include <cstdint>
-#include <vector>
+#include "vk_debugmsg.hpp"
+
 
 
 using HelloTriangle::create_instance;
 
 
-create_instance::create_instance(const std::string& app_name, const std::vector<const char*>& enabled_extensions) {
+
+create_instance::create_instance(const std::string& app_name, const std::vector<const char*> enabled_extensions, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback) {
+    volkInitialize();
     VkApplicationInfo appInfo{}; //Fill in this struct for information about app (in case of driver optimizations)
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO; //Structure type
         appInfo.pApplicationName = "Hey"; //App name
@@ -22,13 +26,37 @@ create_instance::create_instance(const std::string& app_name, const std::vector<
         createInfo.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size()); //Enabled extension count
         createInfo.ppEnabledExtensionNames = enabled_extensions.data(); //Extension count
     
+    if (enableValidationLayers && debugCallback != nullptr) {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+
+        debug_setup::fill_debug_msg_info(debugCreateInfo, debugCallback);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+    } else {
+        createInfo.enabledLayerCount = 0;
+
+        createInfo.pNext = nullptr;
+    }
+    auto extensions = debug_setup::get_extensions();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
+
+
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
         throw std::runtime_error("FAILED TO CREATE INSTANCE!!!!");
     }
 
+//    if (enableValidationLayers && debug_setup::check_validation_support()) {
+//        throw std::runtime_error("Well the validation layer you gave is NOT there!!!!!");
+//    }
+
     volkLoadInstance(instance);
 }
 
-VkInstance& create_instance::get_instance() {
-    return instance;
+create_instance::~create_instance() {
+    vkDestroyInstance(instance, nullptr);
 }
+
+
+
+

@@ -6,7 +6,11 @@
 using HelloTriangle::create_device;
 using HelloTriangle::QueueFamilyIndices;
 
-void create_device::find_physical_device(VkInstance instance) {
+create_device::create_device() {
+    
+}
+
+void create_device::find_physical_device(VkInstance instance, VkSurfaceKHR surface) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
@@ -19,7 +23,7 @@ void create_device::find_physical_device(VkInstance instance) {
 
 
     for (const auto& device : devices) {
-        if (isDeviceSuitable(device)) {
+        if (isDeviceSuitable(device, surface)) {
             physicalDevice = device;
             break;
         }
@@ -30,7 +34,7 @@ void create_device::find_physical_device(VkInstance instance) {
 }
 
 void create_device::create_logical_device(VkSurfaceKHR surface) {
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
@@ -69,13 +73,13 @@ void create_device::create_logical_device(VkSurfaceKHR surface) {
     volkLoadDevice(device);
 }
 
-bool create_device::isDeviceSuitable(VkPhysicalDevice device) {
-    QueueFamilyIndices indices = findQueueFamilies(device);
+bool create_device::isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    QueueFamilyIndices indices = findQueueFamilies(device, surface);
     bool extensionsSupported = checkDeviceExtensionSupport(device);
              
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        SwapChainSupportDetails swapchainSupport = querySwapChainSupport(device);
+        SwapChainSupportDetails swapchainSupport = presentation_setup::query_swapchain_support(device, surface);
         swapChainAdequate = !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
     }
     return indices.isComplete() && extensionsSupported && swapChainAdequate;
@@ -97,7 +101,7 @@ bool create_device::checkDeviceExtensionSupport(VkPhysicalDevice device) {
     return requiredExtensions.empty();
 }
 
-QueueFamilyIndices create_device::findQueueFamilies(VkPhysicalDevice device) {
+QueueFamilyIndices create_device::findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
     QueueFamilyIndices indices;
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -126,7 +130,9 @@ QueueFamilyIndices create_device::findQueueFamilies(VkPhysicalDevice device) {
     return indices;
 }
 
-
+create_device::~create_device() {
+    vkDestroyDevice(device, nullptr);
+}
 
 
 //Ballsack Gaming
