@@ -153,9 +153,14 @@ void presentation_setup::create_image_views(VkDevice device) {
 
 
 void presentation_setup::cleanupSwapChain() {
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+    for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+        }
+
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
             vkDestroyImageView(device, swapChainImageViews[i], nullptr);
-    }
+        }
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
 
 void presentation_setup::recreate_swap_chain(VkPhysicalDevice physical_device, VkDevice device, GLFWwindow* window, VkRenderPass pass) {
@@ -163,6 +168,8 @@ void presentation_setup::recreate_swap_chain(VkPhysicalDevice physical_device, V
         glfwGetFramebufferSize(window, &width, &height);
         while (width == 0 || height == 0) {
             glfwGetFramebufferSize(window, &width, &height);
+            swapChainExtent.width = width;
+            swapChainExtent.height = height; //shenanigans
             glfwWaitEvents();          
         }
 
@@ -200,6 +207,4 @@ void presentation_setup::create_framebuffers(VkRenderPass pass) {
 
 presentation_setup::~presentation_setup() {
     cleanupSwapChain();
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-
 }

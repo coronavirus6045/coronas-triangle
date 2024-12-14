@@ -95,7 +95,7 @@ void draw(context* c) {
     
     vkWaitForFences(c->device, 1, &c->inFlightFences[c->currentFrame], VK_TRUE, UINT64_MAX);
         uint32_t imageIndex;
-
+        context_info.swapchain = presentation_object.get_swap_chain(); //maybe ill do pointers instead of a reference
         VkResult result = vkAcquireNextImageKHR(c->device, c->swapchain, UINT32_MAX, c->imageAvailableSemaphores[c->currentFrame], nullptr, &imageIndex);
         
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -107,9 +107,11 @@ void draw(context* c) {
         }
         vkResetFences(c->device, 1, &c->inFlightFences[c->currentFrame]);
         
+//        presentation_object.get_framebuffers(); //for some reason resources from context info does not update, maybe i'll try out pointers
+        
         vkResetCommandBuffer(c->commandBuffers[c->currentFrame], 0);
-        cmd_object.record_command_buffer(c->commandBuffers[c->currentFrame], c->renderPass, c->swapchainExtent, c->swapchainFramebuffers, imageIndex, c->graphicsPipeline);
-
+        cmd_object.record_command_buffer(c->commandBuffers[c->currentFrame], c->renderPass, presentation_object.get_extent(), presentation_object.get_framebuffers(), imageIndex, c->graphicsPipeline);
+        //this works but i need to fix something with how do i get the latest change of the extent and framebuffer without calling the getters.
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
