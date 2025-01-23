@@ -2,6 +2,8 @@
 
 #include "common.hpp"
 #include "init_window.hpp"
+#include "scene/scene_obj.hpp"
+#include "vk_buffers.hpp"
 #include "vk_device.hpp"
 #include "vk_instance.hpp"
 #include "vk_debugmsg.hpp"
@@ -12,6 +14,7 @@
 #include <GLFW/glfw3.h>
 #include <cstdlib>
 #include <exception>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 
@@ -20,6 +23,7 @@ HelloTriangle::create_instance instance_object("triangle", HelloTriangle::device
 HelloTriangle::debug_setup debug_msg_object(instance_object.get_instance(), HelloTriangle::validationLayers);
 HelloTriangle::create_device device_object;
 HelloTriangle::presentation_setup presentation_object(device_object.get_device(), instance_object.get_instance(), window_object.get_window());
+HelloTriangle::buffer_creation buffer_object(device_object.get_device(), device_object.get_physical_device());
 HelloTriangle::pipeline_state pipeline_object(device_object.get_device());
 HelloTriangle::command_objects cmd_object(device_object.get_physical_device(), device_object.get_device(), presentation_object.get_surface());
 HelloTriangle::sync_objects sync_obj(device_object.get_device());
@@ -36,9 +40,10 @@ struct context {
     VkDevice device;
     VkRenderPass renderPass;
     VkSwapchainKHR swapchain;
+    VkBuffer vertexBuffer;
     std::vector<VkCommandBuffer> commandBuffers;
-    VkExtent2D swapchainExtent;
-    std::vector<VkFramebuffer> swapchainFramebuffers;
+    VkExtent2D* swapchainExtent;
+    std::vector<VkFramebuffer>* swapchainFramebuffers;
     VkPipeline graphicsPipeline;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
@@ -46,6 +51,12 @@ struct context {
 };
 
 context context_info;
+
+std::vector<HelloTriangle::vertex> vertices = {
+    {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}
+}; 
 
 void init() {
     //https://i.kym-cdn.com/photos/images/original/002/914/678/a6a.png
@@ -58,6 +69,7 @@ void init() {
     presentation_object.create_swapchain(device_object.get_physical_device(), device_object.get_device());
     presentation_object.create_image_views(device_object.get_device());
     pipeline_object.create_render_pass(presentation_object.get_format());
+    buffer_object.create_vertex_buffer(vertices);
     pipeline_object.create_graphics_pipeline(presentation_object.get_extent());
     presentation_object.create_framebuffers(pipeline_object.get_render_pass());
     cmd_object.create_command_pool();
@@ -73,9 +85,10 @@ void init() {
         .device = device_object.get_device(),
         .renderPass = pipeline_object.get_render_pass(),
         .swapchain = presentation_object.get_swap_chain(),
+        .vertexBuffer = buffer_object.get_vertex_buffer(),
         .commandBuffers = cmd_object.get_command_buffers(),
-        .swapchainExtent = presentation_object.get_extent(),
-        .swapchainFramebuffers = presentation_object.get_framebuffers(),
+        .swapchainExtent = &presentation_object.get_extent(),
+        .swapchainFramebuffers = &presentation_object.get_framebuffers(),
         .graphicsPipeline = pipeline_object.get_graphics_pipeline(),
         .graphicsQueue = device_object.get_graphics_queue(),
         .presentQueue = device_object.get_present_queue()
@@ -110,7 +123,7 @@ void draw(context* c) {
 //        presentation_object.get_framebuffers(); //for some reason resources from context info does not update, maybe i'll try out pointers
         
         vkResetCommandBuffer(c->commandBuffers[c->currentFrame], 0);
-        cmd_object.record_command_buffer(c->commandBuffers[c->currentFrame], c->renderPass, presentation_object.get_extent(), presentation_object.get_framebuffers(), imageIndex, c->graphicsPipeline);
+        cmd_object.record_command_buffer(c->commandBuffers[c->currentFrame], c->renderPass, *c->swapchainExtent, *c->swapchainFramebuffers, imageIndex, c->graphicsPipeline, c->vertexBuffer, vertices);
         //this works but i need to fix something with how do i get the latest change of the extent and framebuffer without calling the getters.
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

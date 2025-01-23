@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include "scene/scene_obj.hpp"
 
 
 namespace HelloTriangle {
@@ -10,7 +11,7 @@ namespace HelloTriangle {
         ~command_objects();
         void create_command_pool();
         void create_command_buffer();
-        void record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline);
+        void record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices);
         
         std::vector<VkCommandBuffer>& get_command_buffers() {return commandBuffers;}
         private:

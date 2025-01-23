@@ -1,6 +1,9 @@
 #include "vk_command.hpp"
 #include "common.hpp"
+#include "scene/scene_obj.hpp"
 #include "vk_device.hpp"
+#include <cstdint>
+#include <vulkan/vulkan_core.h>
 using HelloTriangle::command_objects;
 
 command_objects::command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg) : physicalDevice(physical_device), device(device_arg), surface(surface_arg) {}
@@ -31,7 +34,7 @@ void command_objects::create_command_buffer() {
     }
 }
 
-void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline) {
+void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices) {
     VkCommandBufferBeginInfo beginInfo{};
          beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
          beginInfo.flags = 0;
@@ -56,6 +59,10 @@ void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRen
          
          vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
          
+         VkBuffer vertexBuffers[] = {vertexBuffer};
+         VkDeviceSize offsets[] = {0};
+         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
          VkViewport viewport {};
          viewport.x = 0.0f;
          viewport.y = 0.0f;
@@ -70,7 +77,7 @@ void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRen
          scissor.extent = swapChainExtent;
          vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+         vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
          vkCmdEndRenderPass(commandBuffer);
          

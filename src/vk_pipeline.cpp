@@ -1,7 +1,9 @@
 #include "vk_pipeline.hpp"
 #include "load_file.hpp"
-
+#include "scene/scene_obj.hpp"
+#include <cstdint>
 using HelloTriangle::pipeline_state;
+using HelloTriangle::vertex;
 
 pipeline_state::pipeline_state(VkDevice& device_arg) : device(device_arg) {}
 
@@ -12,7 +14,8 @@ void pipeline_state::create_graphics_pipeline(VkExtent2D swapChainExtent) {
         VkShaderModule vertShaderModule = create_shader_module(vertShaderCode);
         VkShaderModule fragShaderModule = create_shader_module(fragShaderCode);
         
-        
+        auto bindingDescription = vertex::get_binding_description();
+        auto attributeDescriptions = vertex::get_attribute_description();
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -40,10 +43,10 @@ void pipeline_state::create_graphics_pipeline(VkExtent2D swapChainExtent) {
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
