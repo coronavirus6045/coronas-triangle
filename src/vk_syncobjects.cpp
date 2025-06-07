@@ -1,8 +1,27 @@
 #include "vk_syncobjects.hpp"
 
-using HelloTriangle::sync_objects;
+using HelloTriangle::SyncObjects;
+using HelloTriangle::Semaphore;
+using HelloTriangle::Fence;
 
-sync_objects::sync_objects(VkDevice& device_arg) : device(device_arg) {
+void Semaphore::create(Device& device) {
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    CHECK_FOR_VK_RESULT(vkCreateSemaphore(device.get_device(), &semaphore_info, nullptr, &_semaphore), "SEMAPHORE CREATE ERROR");
+}
+
+
+void Fence::create(Device& device) {
+    VkFenceCreateInfo fence_info{};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    CHECK_FOR_VK_RESULT(vkCreateFence(device.get_device(), &fence_info, nullptr, &_fence), "FENCE CREATE ERROR");
+}
+
+
+sync_objects::SyncObjects(VkDevice& device_arg) : device(device_arg) {
 
 }
 
@@ -28,7 +47,7 @@ void sync_objects::create_sync_objects() {
         }
 }
 
-sync_objects::~sync_objects() {
+sync_objects::~SyncObjects() {
     for (size_t i; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);

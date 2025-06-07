@@ -4,43 +4,85 @@
 #include "vk_device.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
-using HelloTriangle::command_objects;
+using HelloTriangle::command_objects::CommandBuffer;
+using HelloTriangle::command_objects::CommandPool;
+using HelloTriangle::device_object;
 
-command_objects::command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg) : physicalDevice(physical_device), device(device_arg), surface(surface_arg) {}
+//command_objects::command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg) : physicalDevice(physical_device), device(device_arg), surface(surface_arg) {}
 
-void command_objects::create_command_pool() {
-    QueueFamilyIndices queueFamilyIndices = create_device::findQueueFamilies(physicalDevice, surface);
+CommandPool::CommandPool(device_object& device) : _device(device) {
+    QueueFamilyIndices queueFamilyIndices = create_device::findQueueFamilies(_device, surface);
 
-        VkCommandPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        VkCommandPoolCreateInfo pool_info{};
+        pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        pool_info.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-        if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        if (vkCreateCommandPool(_device.device, &pool_info, nullptr, &_command_pool) != VK_SUCCESS) {
             throw std::runtime_error("JOEVER ERROR SUPER LEVEL: COMMAND POOL FAILED!");
         }
 }
 
-void command_objects::create_command_buffer() {
-    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
+CommandPool::~CommandPool() {
+    vkDestroyCommandPool(_device.device, _command_pool, nullptr);
+}
 
-    if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data())) {
-    throw std::runtime_error("JOEVER ERROR FATAL: COMMAND BUFFER FAILED!");
+CommandBuffer::CommandBuffer(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) : _device(device), _command_pool(command_pool) {
+    VkCommandBufferAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = command_pool.get();
+    alloc_info.level = level;
+    alloc_info.commandBufferCount = 1;
+    
+    if (vkAllocateCommandBuffers(_device.device, &alloc_info, &_command_buffer) != VK_SUCCESS) {
+        throw std::runtime_error("JOEVER ERROR FATAL: COMMAND BUFFER FAILED!");
     }
 }
 
-void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices) {
-    VkCommandBufferBeginInfo beginInfo{};
-         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-         beginInfo.flags = 0;
-         beginInfo.pInheritanceInfo = nullptr;
+void CommandBuffer::begin(VkCommandBufferUsageFlags usage) {
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = usage;
+    begin_info.pInheritanceInfo = nullptr;
 
-         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(_command_buffer, &begin_info) != VK_SUCCESS) {
+       throw std::runtime_error("Due to copyright, we can't record buffer.");
+    }
+    
+}
+
+void CommandBuffer::end() {
+    if (vkEndCommandBuffer(_command_buffer) != VK_SUCCESS) {
+        throw std::runtime_error("Minor inconvenience: BUFFER RECORD FAIL!");
+    }
+
+}
+
+void CommandBuffer::submit() {
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &_command_buffer;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = ;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = ;
+
+    if (vkQueueSubmit(_device.get_graphics_queue(), 1, &submit_info, ) != VK_SUCCESS) {
+        throw std::runtime_error("");
+    }
+    vkQueueWaitIdle(_device.get_graphics_queue());
+}
+
+
+//Will now be separate, todo: abstract all VkCmds. but for now use VkCmd*s instead in main()
+void command_objects::record_CommandBuffer(uint32_t currentFrame,VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipelineLayout pipelineLayout, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices, VkBuffer indexBuffer, const std::vector<uint32_t> indices, std::vector<VkDescriptorSet> descriptorSets) {
+    VkCommandBufferBeginInfo begin_info{};
+         begin_info.sType = VK_STRUCTURE_TYPE_CommandBuffer_BEGIN_INFO;
+         begin_info.flags = 0;
+         begin_info.pInheritanceInfo = nullptr;
+
+         if (vkBeginCommandBuffer(commandBuffer, &begin_info) != VK_SUCCESS) {
             throw std::runtime_error("Due to copyright, we can't record buffer.");
          }
 
@@ -62,7 +104,7 @@ void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRen
          VkBuffer vertexBuffers[] = {vertexBuffer};
          VkDeviceSize offsets[] = {0};
          vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
          VkViewport viewport {};
          viewport.x = 0.0f;
          viewport.y = 0.0f;
@@ -77,8 +119,9 @@ void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRen
          scissor.extent = swapChainExtent;
          vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-         vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
-
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+         //vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
          vkCmdEndRenderPass(commandBuffer);
          
          if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -86,8 +129,6 @@ void command_objects::record_command_buffer(VkCommandBuffer commandBuffer, VkRen
          }
 }
 
-command_objects::~command_objects() {
-    vkDestroyCommandPool(device, commandPool, nullptr);
-}
+
 
 //i lack design stuff 

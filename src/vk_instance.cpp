@@ -17,7 +17,7 @@ create_instance::create_instance(const std::string& app_name, const std::vector<
         appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 0); //App version
         appInfo.pEngineName = "coronas-triangle"; //Engine name
         appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 0); //Engine version
-        appInfo.apiVersion = VK_API_VERSION_1_1; //Vk API version
+        appInfo.apiVersion = VK_API_VERSION_1_2; //Vk API version
 
     VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO; //Structure type

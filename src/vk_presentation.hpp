@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.hpp"
-
+#include "vk_image.hpp"
 
 
 namespace HelloTriangle {
@@ -15,6 +15,25 @@ namespace HelloTriangle {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
+    class Swapchain {
+    public:
+    Swapchain();
+    ~Swapchain();
+    void create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode);
+    void recreate(SDL_Window* window, ); //only native handles i could use are window and surface
+    void destroy();
+    private:
+
+    VkSwapchainKHR _swapchain;
+    std::vector<VkImage> _swapchain_images;
+    std::vector<VkImageView> _swapchain_views;
+    VkExtent2D _extent;
+    VkPresentModeKHR _mode;
+    VkFormat _format;
+    Device& _device;
+    VkSurfaceKHR& _surface;
+    };
+
     class presentation_setup {
         public:
         presentation_setup(VkDevice& device_arg, VkInstance& instance, GLFWwindow* window_arg);
@@ -23,7 +42,7 @@ namespace HelloTriangle {
         static SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface);
         void create_swapchain(VkPhysicalDevice physical_device, VkDevice device);
         void create_image_views(VkDevice device);
-         void recreate_swap_chain(VkPhysicalDevice physical_device, VkDevice device, GLFWwindow* window, VkRenderPass pass);
+        void recreate_swap_chain(VkPhysicalDevice physical_device, VkDevice device, GLFWwindow* window, VkRenderPass pass);
         void create_framebuffers(VkRenderPass pass);
         VkSurfaceKHR& get_surface() {return surface;}
         VkExtent2D& get_extent() {return swapChainExtent;}

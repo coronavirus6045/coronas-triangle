@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "init_window.hpp"
 #include "scene/scene_obj.hpp"
+#include "vk_descriptor.hpp"
 #include "vk_buffers.hpp"
 #include "vk_device.hpp"
 #include "vk_instance.hpp"
@@ -12,6 +13,7 @@
 #include "vk_command.hpp"
 #include "vk_syncobjects.hpp"
 #include <GLFW/glfw3.h>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <vector>
@@ -23,10 +25,11 @@ HelloTriangle::create_instance instance_object("triangle", HelloTriangle::device
 HelloTriangle::debug_setup debug_msg_object(instance_object.get_instance(), HelloTriangle::validationLayers);
 HelloTriangle::create_device device_object;
 HelloTriangle::presentation_setup presentation_object(device_object.get_device(), instance_object.get_instance(), window_object.get_window());
-HelloTriangle::buffer_creation buffer_object(device_object.get_device(), device_object.get_physical_device());
 HelloTriangle::pipeline_state pipeline_object(device_object.get_device());
 HelloTriangle::command_objects cmd_object(device_object.get_physical_device(), device_object.get_device(), presentation_object.get_surface());
-HelloTriangle::sync_objects sync_obj(device_object.get_device());
+HelloTriangle::buffer_creation buffer_object(device_object.get_device(), device_object.get_physical_device(), device_object.get_graphics_queue(), cmd_object.get_command_pool());
+HelloTriangle::descriptor_creation descriptor_object(device_object.get_device());
+HelloTriangle::SyncObjects sync_obj(device_object.get_device());
 
 
 struct context {
@@ -41,10 +44,14 @@ struct context {
     VkRenderPass renderPass;
     VkSwapchainKHR swapchain;
     VkBuffer vertexBuffer;
+    VkBuffer indexBuffer;
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDescriptorSet> descriptorSets;
     std::vector<VkCommandBuffer> commandBuffers;
     VkExtent2D* swapchainExtent;
     std::vector<VkFramebuffer>* swapchainFramebuffers;
     VkPipeline graphicsPipeline;
+    VkPipelineLayout pipelineLayout;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
 
@@ -53,10 +60,15 @@ struct context {
 context context_info;
 
 std::vector<HelloTriangle::vertex> vertices = {
-    {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
 }; 
+
+std::vector<uint32_t> indices = {
+    0, 1, 2, 2, 3, 0
+};
 
 void init() {
     //https://i.kym-cdn.com/photos/images/original/002/914/678/a6a.png
@@ -69,11 +81,16 @@ void init() {
     presentation_object.create_swapchain(device_object.get_physical_device(), device_object.get_device());
     presentation_object.create_image_views(device_object.get_device());
     pipeline_object.create_render_pass(presentation_object.get_format());
-    buffer_object.create_vertex_buffer(vertices);
-    pipeline_object.create_graphics_pipeline(presentation_object.get_extent());
+    descriptor_object.create_descriptor_set_layout();
+    pipeline_object.create_graphics_pipeline(presentation_object.get_extent(), descriptor_object.get_descriptor_set_layout());
     presentation_object.create_framebuffers(pipeline_object.get_render_pass());
     cmd_object.create_command_pool();
     cmd_object.create_command_buffer();
+    buffer_object.create_vertex_buffer(vertices);
+    buffer_object.create_index_buffer(indices);
+    buffer_object.create_uniform_buffers();
+    descriptor_object.create_descriptor_pool();
+    descriptor_object.create_descriptor_sets(buffer_object.get_uniform_buffers());
     sync_obj.create_sync_objects();
     //sync objects already created
     context_info = {
@@ -86,10 +103,14 @@ void init() {
         .renderPass = pipeline_object.get_render_pass(),
         .swapchain = presentation_object.get_swap_chain(),
         .vertexBuffer = buffer_object.get_vertex_buffer(),
+        .indexBuffer = buffer_object.get_index_buffer(),
+        .uniformBuffers = buffer_object.get_uniform_buffers(),
+        .descriptorSets = descriptor_object.get_descriptor_sets(),
         .commandBuffers = cmd_object.get_command_buffers(),
         .swapchainExtent = &presentation_object.get_extent(),
         .swapchainFramebuffers = &presentation_object.get_framebuffers(),
         .graphicsPipeline = pipeline_object.get_graphics_pipeline(),
+        .pipelineLayout = pipeline_object.get_pipeline_layout(),
         .graphicsQueue = device_object.get_graphics_queue(),
         .presentQueue = device_object.get_present_queue()
     };
@@ -98,7 +119,10 @@ void init() {
     //Crazy ass
     //worst C++ code
     //pray to God if this is gonna work
-
+    //03-19-25 - Vertex and index buffers done!
+    //03-21-25 - Were done with uniforms!
+    //Soon: make an abstraction, take notes from RenderingDevice in godot, do some PBR
+    //dang this API is sexy
 }
 
 
@@ -123,8 +147,9 @@ void draw(context* c) {
 //        presentation_object.get_framebuffers(); //for some reason resources from context info does not update, maybe i'll try out pointers
         
         vkResetCommandBuffer(c->commandBuffers[c->currentFrame], 0);
-        cmd_object.record_command_buffer(c->commandBuffers[c->currentFrame], c->renderPass, *c->swapchainExtent, *c->swapchainFramebuffers, imageIndex, c->graphicsPipeline, c->vertexBuffer, vertices);
+        cmd_object.record_command_buffer(c->currentFrame, c->commandBuffers[c->currentFrame], c->renderPass, *c->swapchainExtent, *c->swapchainFramebuffers, imageIndex, c->pipelineLayout, c->graphicsPipeline, c->vertexBuffer, vertices, c->indexBuffer, indices, c->descriptorSets);
         //this works but i need to fix something with how do i get the latest change of the extent and framebuffer without calling the getters.
+        buffer_object.update_uniform_buffer(c->currentFrame, *c->swapchainExtent);
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 

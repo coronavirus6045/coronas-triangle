@@ -1,57 +1,136 @@
 #include "vk_buffers.hpp"
 #include "common.hpp"
-#include "scene/scene_obj.hpp"
-#include <cstddef>
+#include "vk_device.hpp"
 #include <cstdint>
-#include <cstring>
-#include <stdexcept>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-using HelloTriangle::buffer_creation;
+using namespace HelloTriangle;
+using buffer_creation::Buffer;
+//buffer_creation::buffer_creation(Device& device_arg, VkPhysicalDevice& physical_device, VkQueue& graphics_queue, VkCommandPool& command_pool) : device(device_arg), physicalDevice(physical_device), commandPool(command_pool), graphicsQueue(graphics_queue) {}
 
-buffer_creation::buffer_creation(VkDevice& device_arg, VkPhysicalDevice& physical_device) : physicalDevice(physical_device), device(device_arg) {}
-
-void buffer_creation::create_vertex_buffer(const std::vector<vertex> vertices) {
+Buffer::Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) : _buffer_size(size), _device(device) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-        if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(_device.device, &bufferInfo, nullptr, &_buffer) != VK_SUCCESS) {
        std::runtime_error("buffer no make"); 
     }
 
-    vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(_device.device, _buffer, &memory_requirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.allocationSize = memory_requirements.size;
+    allocInfo.memoryTypeIndex = buffer_creation::find_memory_type(_device, memory_requirements.memoryTypeBits, properties);
     //how 2 be inconsistent: lambdas
     //tiny helpers that are NOT used by other classes. 
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+    if (vkAllocateMemory(_device.device, &allocInfo, nullptr, &_buffer_memory) != VK_SUCCESS) {
         throw std::runtime_error("VERTEX BUFFER ERR.");
     }
-    vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
-
-    void* data;
-    vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, vertices.data(), (size_t) bufferInfo.size);
-    vkUnmapMemory(device, vertexBufferMemory);
+    vkBindBufferMemory(_device.device, _buffer, _buffer_memory, 0);
 }
 
-uint32_t buffer_creation::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if (typeFilter & (i << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+void Buffer::map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags) {
+    vkMapMemory(_device.device, _buffer_memory, 0, size, 0, &_buffer_map);
+    memcpy(_buffer_map, data, (size_t) size);
+    //vkUnmapMemory(device, staging_buffer.buffer_memory);
+}
+
+void Buffer::unmap_memory() {
+    vkUnmapMemory(_device.device, _buffer_memory);
+}
+
+
+
+Buffer buffer_creation::create_vertex_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<vertex> vertices) {
+    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+
+    Buffer staging_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    staging_buffer.map_memory((void*) vertices.data(), buffer_size, 0);
+    staging_buffer.unmap_memory();
+
+    Buffer vertex_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+ 
+    copy_buffer(device, staging_buffer, vertex_buffer, command_pool, graphics_queue);
+
+    //Staging buffer will get destroyed by destructor.
+    return vertex_buffer;
+}
+
+Buffer buffer_creation::create_index_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<uint32_t> indices) {
+    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+    
+    Buffer staging_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    staging_buffer.map_memory((void*) indices.data(), buffer_size, 0);
+
+    Buffer index_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    copy_buffer(device, staging_buffer, index_buffer, command_pool, graphics_queue);
+
+    //Ditto with function above
+    return index_buffer;
+}
+std::vector<Buffer> buffer_creation::create_uniform_buffers(Device& device) {
+    VkDeviceSize buffer_size = sizeof(HelloTriangle::uniform_Buffer);
+    std::vector<Buffer> uniform_buffers(MAX_FRAMES_IN_FLIGHT);
+    uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        uniform_buffers.emplace_back(Buffer(device, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+        uniform_buffers[i].map_memory()
+    }
+}
+void buffer_creation::copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, CommandPool command_pool, VkQueue queue) {
+    VkCommandBufferAllocateInfo allocinfo{};
+    allocinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocinfo.commandPool = command_pool.get();
+    allocinfo.commandBufferCount = 1;
+
+    command_objects::CommandBuffer copy_command_buffer(device, command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    //VkCommandBufferBeginInfo begin_info{};
+    //begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    //begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    copy_command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    VkBufferCopy copy_region{};
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = src_buffer.buffer_size();
+    vkCmdCopyBuffer(copy_command_buffer.get(), src_buffer.buffer(), dst_buffer.buffer(), 1, &copy_region);
+    //vkEndCommandBuffer(copy_command_buffer.get());
+    copy_command_buffer.end();
+    copy_command_buffer.submit();
+}
+
+uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    vkGetPhysicalDeviceMemoryProperties(device.physical_device, &memory_properties);
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if (typeFilter & (i << i) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
 }
 
+//Move to main
+void buffer_creation::update_uniform_buffer(uint32_t current_frame, VkExtent2D extent) {
+    static auto start_time = std::chrono::high_resolution_clock::now();
+    auto current_time = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
-buffer_creation::~buffer_creation() {
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    HelloTriangle::uniform_Buffer ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), extent.width / (float) extent.height, 0.0f, 10.0f);
+    ubo.proj[1][1] *= -1;
+    memcpy(uniformBufferMaps[current_frame], &ubo, sizeof(ubo));
 }
+Buffer::~Buffer() {
+    vkDestroyBuffer(_device.device, _buffer, nullptr);
+    vkFreeMemory(_device.device, _buffer_memory, nullptr);
+}
+

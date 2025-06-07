@@ -10,7 +10,8 @@ source_files = [
     'vk_instance.cpp',
     'vk_pipeline.cpp',
     'vk_presentation.cpp',
-    'vk_syncobjects.cpp'
+    'vk_syncobjects.cpp',
+    'vk_descriptor.cpp'
 ]
 
 

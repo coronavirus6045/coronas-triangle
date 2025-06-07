@@ -2,24 +2,40 @@
 
 #include "common.hpp"
 #include "scene/scene_obj.hpp"
+#include "vk_device.hpp"
+#include <cstdint>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 
 namespace HelloTriangle {
-    class command_objects {
-        public:
-        command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg);
-        ~command_objects();
-        void create_command_pool();
-        void create_command_buffer();
-        void record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices);
-        
-        std::vector<VkCommandBuffer>& get_command_buffers() {return commandBuffers;}
-        private:
-        VkCommandPool commandPool;
-        std::vector<VkCommandBuffer> commandBuffers;
-
-        VkPhysicalDevice& physicalDevice;
-        VkDevice& device;
-        VkSurfaceKHR& surface;
-    };
+    namespace command_objects {
+        class CommandPool {
+            public:
+            CommandPool(Device& device);
+            ~CommandPool();
+            
+            VkCommandPool& get();
+            private:
+            VkCommandPool _command_pool;
+            Device& _device;
+        };
+        class CommandBuffer {
+            public: 
+            CommandBuffer(Device& device, CommandPool& CommandPool, VkCommandBufferLevel level);
+            ~CommandBuffer();
+            void begin(VkCommandBufferUsageFlags usage);
+            void end();
+            void submit();
+            void reset();
+            //secondary coming soon
+            VkCommandBuffer& get() {};
+            private:
+            VkCommandBuffer _command_buffer;
+            
+            Device& _device;
+            CommandPool& _command_pool;
+        };
+    }
+    //command wrappers for VkCmd*s coming soom
 }
