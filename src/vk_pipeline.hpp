@@ -3,7 +3,7 @@
 #include "common.hpp"
 #include "vk_shader.hpp"
 #include "vk_descriptor.hpp"
-#include <vulkan/vulkan_core.h>
+#include "vk_image.hpp"
 
 
 namespace HelloTriangle {
@@ -49,58 +49,35 @@ namespace HelloTriangle {
     };
     class PipelineLayout {
         public:
-            PipelineLayout();
+            PipelineLayout(Device& device, std::vector<DescriptorLayout> layouts, VkPipelineLayoutCreateFlags flags);
+            ~PipelineLayout();
             void set_layouts(std::vector<DescriptorLayout> layouts);
-            void create(VkPipelineLayoutCreateFlags flags);
-            void get();
+            void create(Device& device, VkPipelineLayoutCreateFlags flags);
+            VkPipelineLayout& get() {return _pipeline_layout;}
+
         private:
             VkPipelineLayout _pipeline_layout;
             std::vector<VkDescriptorSetLayout> _layouts;
+
+            Device& _device;
     };
 
     //do we NEED this? ill maybe separate to PipelineInfo and its
+    class RenderPass;
+    //why
     class PipelineMaker {
     public:
-    PipelineMaker();
+    PipelineMaker(Device& device);
     ~PipelineMaker();
     //Resets
     //void init();
+    void set_shader(HelloTriangle::Shader& shader, VkShaderStageFlagBits flags, std::string name);
+    PipelineHandle create_graphics_pipeline(GraphicsPipelineInfo info, PipelineLayout& layout, RenderPass& render_pass, std::vector<DescriptorLayout> layouts);
 
-    //dynamic states BABY
-    void set_viewport_count(uint32_t count);
-    void set_scissor_count(uint32_t count);
-    //this is too much, another rewrite but its easier
-    void set_input_topology(VkPrimitiveTopology topology, bool primitive_restart);
-
-    void set_vertex_attribute_description(VkVertexInputAttributeDescription description);
-    void set_vertex_binding_description(VkVertexInputBindingDescription description);
-
-    void set_color_blend_logic_op();
-    void set_color_blend_attachment();
-
-    void set_multisampling(bool enable, VkSampleCountFlagBits sample_count);
-
-    void set_descriptor_layout();
-
-    void set_rasterizer_polygon_mode(VkPolygonMode mode, float line_width);
-    void set_rasterizer_cull_mode(VkCullModeFlags flags, VkFrontFace front_face);
-    void set_shader();
-
-    PipelineHandle create_graphics_pipeline();
-
-    void delete_pipeline();
+    void delete_pipeline(PipelineHandle pipeline);
     private:
     std::vector<VkPipelineShaderStageCreateInfo> _shader_stage_infos;
-    std::vector<VkVertexInputBindingDescription> binding_descriptions;
-    std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
-    std::vector<HelloTriangle::DescriptorLayout> descriptor_layouts;
-    VkPipelineRasterizationStateCreateInfo rasterizer_info;
-    VkPipelineMultisampleStateCreateInfo multisampling_info;
-    VkPipelineColorBlendStateCreateInfo color_blending_info;
-    VkPipelineVertexInputStateCreateInfo vertex_input_info;
-    VkPipelineInputAssemblyStateCreateInfo input_assembly_info;
-    VkPipelineLayoutCreateInfo pipeline_layout_info;
-    VkPipelineLayout p_pipeline_layout;
+
     VkPipeline p_pipeline;
 
     Device& _device;
@@ -117,67 +94,49 @@ namespace HelloTriangle {
             VkImageLayout final_layout;
     };
 
+    struct RenderAttachmentReference {
+            uint32_t attachment_index;
+            VkImageLayout layout;
+    };
+
     struct Subpass {
             VkPipelineBindPoint bind_point;
-            std::vector<RenderAttachment> color_attachments;
-            //std::vector<RenderAttachment> attachment;
+            std::vector<RenderAttachmentReference> color_references;
+            //std::vector<RenderAttachment> attachment; The other attachments later.
+    };
+
+    struct SubpassDependency {
+            uint32_t src_subpass;
+            uint32_t dst_subpass;
+            VkPipelineStageFlags src_stage_mask;
+            VkPipelineStageFlags dst_stage_mask;
+            VkAccessFlags src_access_mask;
+            VkAccessFlags dst_access_mask;
     };
 
     class RenderPass {
     public:
-    RenderPass();
+    RenderPass(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies);
     ~RenderPass();
-    void create();
-    void set_subpass();
-    void set_attachment();
-    VkRenderPass& get();
+    void create(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies);
+    VkRenderPass& get() {return _render_pass;}
     private:
+    VkAttachmentReference _create_reference(RenderAttachmentReference ref);
     VkRenderPass _render_pass;
-    std::vector<VkAttachmentDescription> _attachments;
     //depth coming soon
     //maybe ill remove if i decide to use dynamic rendering
-    std::vector<VkSubpassDescription> _subpasses;
-    std::vector<VkSubpassDependency> _dependencies;
-    }
-    //since this thing as TOO many things to fill out, i'll do it in a struct (reinventing the same thing)
-
-
-
-
-    class pipeline_state {
-        public:
-        pipeline_state(VkDevice& device_arg);
-        ~pipeline_state();
-
-        void create_graphics_pipeline(VkExtent2D swapChainExtent, VkDescriptorSetLayout descriptorSetLayout);
-        VkShaderModule create_shader_module(const std::vector<char>& code);
-        void create_render_pass(VkFormat swapChainImageFormat);
-
-        VkPipeline& get_graphics_pipeline() {return graphicsPipeline;}
-        VkPipelineLayout& get_pipeline_layout() {return pipelineLayout;}
-        VkRenderPass& get_render_pass() {return renderPass;}
-
-        private:
-        VkPipelineLayout pipelineLayout;
-        VkPipeline graphicsPipeline;
-        VkRenderPass renderPass;
-
-        VkDevice& device;
-        //Query functions need to be STATIC.
+    Device& _device;
     };
+
+    class Framebuffer {
+        public:
+            Framebuffer();
+            ~Framebuffer();
+            void create();
+            VkFramebuffer& get() {return _framebuffer;}
+        private:
+            VkFramebuffer _framebuffer;
+
+    };
+
 }
-
-/*
-guide for myself, organizing classes like this
-SEPARATE BY NEWLINE.
-public:
-constructor
-destructor
-main funcs
-getters
-static funcs (e.g. query)
-private
-main objects
-objects (references, initialized by constructor)
-
-*/
