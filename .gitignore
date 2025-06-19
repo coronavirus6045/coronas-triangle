@@ -1,2 +1,12 @@
+.qtc_clangd/
+.vscode/
+.qtcreator/
 build/
 .cache/
+*.cflags
+*.config
+*.creator
+*.creator.uset
+*.cxxflags
+*.files
+*.includes
