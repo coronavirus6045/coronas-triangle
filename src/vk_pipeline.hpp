@@ -52,6 +52,7 @@ namespace HelloTriangle {
             PipelineLayout(Device& device, std::vector<DescriptorLayout> layouts, VkPipelineLayoutCreateFlags flags);
             ~PipelineLayout();
             void set_layouts(std::vector<DescriptorLayout> layouts);
+
             void create(Device& device, VkPipelineLayoutCreateFlags flags);
             VkPipelineLayout& get() {return _pipeline_layout;}
 

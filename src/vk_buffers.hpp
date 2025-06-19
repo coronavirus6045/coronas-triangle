@@ -13,11 +13,12 @@
 #include <chrono>
 
 namespace HelloTriangle {
-    namespace buffer_creation {
+    // We'll use VMA later5
         class Buffer { //buffer object wrapper so i can have both buffer and its memory in one object
             public:
             Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
             ~Buffer();
+            void create(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
             //Buffer and its memory is always const since you do not modify it directly, use map_memory() and assign_memory() instead.
             //These can be used when using native vk functions.
             const VkBuffer& buffer() const {return _buffer;}
@@ -37,11 +38,10 @@ namespace HelloTriangle {
             Device& _device;
         };
         //Wrappers for different buffers but you can manually do it.
-        Buffer create_vertex_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<vertex> vertices);
-        Buffer create_index_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<uint32_t> indices);
+        Buffer create_vertex_buffer(Device& device, VkCommandPool& command_pool, const std::vector<vertex> vertices);
+        Buffer create_index_buffer(Device& device, VkCommandPool& command_pool, const std::vector<uint32_t> indices);
         Buffer create_uniform_buffers(Device& device);
         void update_uniform_buffer(uint32_t current_frame, VkExtent2D extent);
         void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, VkCommandPool command_pool, VkQueue queue);
         uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
-    }
 }

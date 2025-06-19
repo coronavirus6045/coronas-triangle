@@ -20,7 +20,5 @@ Shader::Shader(Device& device, std::string file_path) : p_device(device) {
     createInfo.codeSize = buffer.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
-    if (vkCreateShaderModule(p_device.device, &createInfo, nullptr, &p_shader_module) != VK_SUCCESS) {
-        throw std::runtime_error("Joever error: Can't make shader module, womp womp.");
-    }
+    CHECK_FOR_VK_RESULT(vkCreateShaderModule(p_device.get_device(), &createInfo, nullptr, &p_shader_module), "")
 }

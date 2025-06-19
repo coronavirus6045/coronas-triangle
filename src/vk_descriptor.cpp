@@ -1,5 +1,4 @@
 #include "vk_descriptor.hpp"
-#include "uniform_buffer_object.hpp"
 #include "src/common.hpp"
 #include <cstdint>
 #include <glm/common.hpp>
@@ -20,15 +19,13 @@ descriptor_creation::~descriptor_creation() {
 }
 //Descriptors are for shaders to access resources
 //Descriptor layout
-HelloTriangle::DescriptorLayout::create() {
+HelloTriangle::DescriptorLayout::create(Device& device) {
     VkDescriptorSetLayoutCreateInfo layout_info{};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layout_info.bindingCount = (uint32_t) _bindings.size();
     layout_info.pBindings = _bindings.data();
 
-    if (vkCreateDescriptorSetLayout(p_device.device, &layout_info, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("We cant make descriptor set layout");
-    }
+    CHECK_FOR_VK_RESULT(vkCreateDescriptorSetLayout(device.get_device(), &layout_info, nullptr, &_descriptor_layout), "")
 }
 
 void DescriptorLayout::add_binding(uint32_t binding, uint32_t descriptor_count, VkDescriptorType type, VkShaderStageFlags stage_flags) {
@@ -42,7 +39,7 @@ void DescriptorLayout::add_binding(uint32_t binding, uint32_t descriptor_count, 
     _bindings.push_back(layout_binding);
 }
 
-void DescriptorPool::DescriptorPool() {
+void DescriptorPool::create(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type) {
     VkDescriptorPoolSize pool_size{};
     pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -52,12 +49,10 @@ void DescriptorPool::DescriptorPool() {
     pool_info.pPoolSizes = &pool_size;
     pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
-    if (vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptorPool) != VK_SUCCESS) {
-        throw std::runtime_error("DesPool error");
-    }
+    CHECK_FOR_VK_RESULT(vkCreateDescriptorPool(device.get_device(), &pool_info, nullptr, &_descriptor_pool), "")
 }
 
-void DescriptorSet::allocate(HelloTriangle::DescriptorPool pool, DescriptorLayout layout) {
+void DescriptorSet::allocate(Device& device, DescriptorPool pool, DescriptorLayout layout) {
     //std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -65,12 +60,11 @@ void DescriptorSet::allocate(HelloTriangle::DescriptorPool pool, DescriptorLayou
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout.get_layout();
     //descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &alloc_info, descriptorSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("DesSets allocate error");
-    }
+    CHECK_FOR_VK_RESULT(vkAllocateDescriptorSets(device.get_device(), &alloc_info, &_descriptor_set), "")
 }
 
-void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, buffer_creation::Buffer* buffer, uint32_t offset, VkDeviceSize range){
+// Struct time!
+void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, VkDeviceSize range){
     //for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 
     VkWriteDescriptorSet descriptor_write{};
@@ -97,7 +91,7 @@ void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descript
         image_info.imageView = ;
     }
 
-        vkUpdateDescriptorSets(_device.device, 1, &descriptor_write, 0, nullptr);
+    vkUpdateDescriptorSets(_device.get_device(), 1, &descriptor_write, 0, nullptr);
 
     //}
 }

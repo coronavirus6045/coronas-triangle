@@ -4,6 +4,7 @@
 
 
 namespace HelloTriangle {
+//
     class Semaphore {
     public:
         Semaphore();

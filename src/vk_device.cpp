@@ -13,7 +13,7 @@ void Device::query_physical_device(VkInstance instance) {
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
     if (device_count == 0) {
-       throw std::runtime_error("No Supported GPU? (megamind peeking)");
+        THROW_RUNTIME_ERROR("No Supported GPU? (megamind peeking)");
     }
 
     std::vector<VkPhysicalDevice> devices(device_count);
@@ -26,9 +26,9 @@ void Device::query_physical_device(VkInstance instance) {
             break;
         }
     }
-     if (physicalDevice == VK_NULL_HANDLE) {
-            throw std::runtime_error("Get a new GPU bro, it aint gonna be suitable.");
-        }
+     if (_physical_device == VK_NULL_HANDLE) {
+         THROW_RUNTIME_ERROR("Get a new GPU bro, it aint gonna be suitable.")
+    }
 }
 
 void Device::create_device(VkSurfaceKHR surface) {
@@ -96,7 +96,7 @@ void Device::create_device(VkSurfaceKHR surface) {
     required_device_features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
     required_device_features_11.pNext = &required_device_features_12;
 
-    required_device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_15_2_PROPERTIES;
+    required_device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
 
     required_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     required_device_features.pNext = &required_device_features_11;
@@ -135,9 +135,7 @@ void Device::create_device(VkSurfaceKHR surface) {
     } else {
         device_info.enabledLayerCount = 0;
     }
-    if (vkCreateDevice(_physical_device, &device_info, nullptr, &_device) != VK_SUCCESS) {
-        throw std::runtime_error("Cant-man, my mom said logical device creation failed.");
-    }
+    CHECK_FOR_VK_RESULT(vkCreateDevice(_physical_device, &device_info, nullptr, &_device), "")
     vkGetDeviceQueue(_device, _graphics_family.value(), 0, &_graphics_queue);
     //vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &presentQueue);
     volkLoadDevice(_device);

@@ -24,6 +24,7 @@ namespace HelloTriangle {
             public: 
             CommandBuffer(Device& device, CommandPool& CommandPool, VkCommandBufferLevel level);
             ~CommandBuffer();
+            void create(Device& device, CommandPool& CommandPool, VkCommandBufferLevel level);
             void begin(VkCommandBufferUsageFlags usage);
             void end();
             void submit();
@@ -34,7 +35,7 @@ namespace HelloTriangle {
             VkCommandBuffer _command_buffer;
             
             Device& _device;
-            CommandPool& _command_pool;
+            //CommandPool& _command_pool;
         };
     }
     //command wrappers for VkCmd*s coming soom

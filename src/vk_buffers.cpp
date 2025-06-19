@@ -3,49 +3,52 @@
 #include "vk_device.hpp"
 #include <cstdint>
 #include <vector>
-using namespace HelloTriangle;
-using buffer_creation::Buffer;
+using HelloTriangle::Buffer;
+using HelloTriangle::Device;
 //buffer_creation::buffer_creation(Device& device_arg, VkPhysicalDevice& physical_device, VkQueue& graphics_queue, VkCommandPool& command_pool) : device(device_arg), physicalDevice(physical_device), commandPool(command_pool), graphicsQueue(graphics_queue) {}
 
-Buffer::Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) : _buffer_size(size), _device(device) {
+Buffer::Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) : _device(device) {
+    create(device, size, usage, properties);
+}
+void Buffer::create(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-        if (vkCreateBuffer(_device.device, &bufferInfo, nullptr, &_buffer) != VK_SUCCESS) {
-       std::runtime_error("buffer no make"); 
-    }
+    CHECK_FOR_VK_RESULT(vkCreateBuffer(_device.get_device(), &bufferInfo, nullptr, &_buffer), "")
 
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(_device.device, _buffer, &memory_requirements);
+    vkGetBufferMemoryRequirements(_device.get_device(), _buffer, &memory_requirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memory_requirements.size;
-    allocInfo.memoryTypeIndex = buffer_creation::find_memory_type(_device, memory_requirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = find_memory_type(_device, memory_requirements.memoryTypeBits, properties);
     //how 2 be inconsistent: lambdas
-    //tiny helpers that are NOT used by other classes. 
-    if (vkAllocateMemory(_device.device, &allocInfo, nullptr, &_buffer_memory) != VK_SUCCESS) {
-        throw std::runtime_error("VERTEX BUFFER ERR.");
-    }
-    vkBindBufferMemory(_device.device, _buffer, _buffer_memory, 0);
+    //tiny helpers that are NOT used by other classes.
+    CHECK_FOR_VK_RESULT(vkAllocateMemory(_device.get_device(), &allocInfo, nullptr, &_buffer_memory), "")
+
+    vkBindBufferMemory(_device.get_device(), _buffer, _buffer_memory, 0);
+    _buffer_size = size;
+    _device = device;
 }
 
-void Buffer::map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags) {
-    vkMapMemory(_device.device, _buffer_memory, 0, size, 0, &_buffer_map);
+void Buffer::map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags = 0) {
+    vkMapMemory(_device.get_device(), _buffer_memory, 0, size, 0, &_buffer_map);
     memcpy(_buffer_map, data, (size_t) size);
-    //vkUnmapMemory(device, staging_buffer.buffer_memory);
 }
 
 void Buffer::unmap_memory() {
-    vkUnmapMemory(_device.device, _buffer_memory);
+    vkUnmapMemory(_device.get_device(), _buffer_memory);
 }
 
+void Buffer::update_memory_map(void* data) {
+    memcpy(_buffer_map, data, (size_t) size);
+}
 
-
-Buffer buffer_creation::create_vertex_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<vertex> vertices) {
+Buffer create_vertex_buffer(Device& device, VkCommandPool& command_pool, const std::vector<vertex> vertices) {
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 
     Buffer staging_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -54,25 +57,25 @@ Buffer buffer_creation::create_vertex_buffer(Device& device, VkCommandPool& comm
 
     Buffer vertex_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
  
-    copy_buffer(device, staging_buffer, vertex_buffer, command_pool, graphics_queue);
+    copy_buffer(device, staging_buffer, vertex_buffer, command_pool, device.get_graphics_queue());
 
     //Staging buffer will get destroyed by destructor.
     return vertex_buffer;
 }
 
-Buffer buffer_creation::create_index_buffer(Device& device, VkCommandPool& command_pool, VkQueue& graphics_queue, const std::vector<uint32_t> indices) {
+Buffer create_index_buffer(Device& device, VkCommandPool& command_pool, const std::vector<uint32_t> indices) {
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
     
     Buffer staging_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     staging_buffer.map_memory((void*) indices.data(), buffer_size, 0);
 
     Buffer index_buffer(device, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    copy_buffer(device, staging_buffer, index_buffer, command_pool, graphics_queue);
+    copy_buffer(device, staging_buffer, index_buffer, command_pool, device.get_graphics_queue());
 
     //Ditto with function above
     return index_buffer;
 }
-std::vector<Buffer> buffer_creation::create_uniform_buffers(Device& device) {
+std::vector<Buffer> create_uniform_buffers(Device& device) {
     VkDeviceSize buffer_size = sizeof(HelloTriangle::uniform_Buffer);
     std::vector<Buffer> uniform_buffers(MAX_FRAMES_IN_FLIGHT);
     uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -107,7 +110,7 @@ void buffer_creation::copy_buffer(Device& device, Buffer& src_buffer, Buffer& ds
 
 uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memory_properties;
-    vkGetPhysicalDeviceMemoryProperties(device.physical_device, &memory_properties);
+    vkGetPhysicalDeviceMemoryProperties(device.get_physical_device(), &memory_properties);
 
     for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
         if (typeFilter & (i << i) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {

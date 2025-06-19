@@ -27,16 +27,19 @@ CommandPool::~CommandPool() {
     vkDestroyCommandPool(_device.device, _command_pool, nullptr);
 }
 
-CommandBuffer::CommandBuffer(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) : _device(device), _command_pool(command_pool) {
+CommandBuffer::CommandBuffer(Device& device, CommandPool& CommandPool, VkCommandBufferLevel level) : _device(device) {
+
+}
+
+void CommandBuffer::create(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) : _device(device), _command_pool(command_pool) {
     VkCommandBufferAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = command_pool.get();
     alloc_info.level = level;
     alloc_info.commandBufferCount = 1;
     
-    if (vkAllocateCommandBuffers(_device.device, &alloc_info, &_command_buffer) != VK_SUCCESS) {
-        throw std::runtime_error("JOEVER ERROR FATAL: COMMAND BUFFER FAILED!");
-    }
+    CHECK_FOR_VK_RESULT(vkAllocateCommandBuffers(_device.get_device(), &alloc_info, &_command_buffer), "")
+    _device = device;
 }
 
 void CommandBuffer::begin(VkCommandBufferUsageFlags usage) {
@@ -45,17 +48,11 @@ void CommandBuffer::begin(VkCommandBufferUsageFlags usage) {
     begin_info.flags = usage;
     begin_info.pInheritanceInfo = nullptr;
 
-    if (vkBeginCommandBuffer(_command_buffer, &begin_info) != VK_SUCCESS) {
-       throw std::runtime_error("Due to copyright, we can't record buffer.");
-    }
-    
+    CHECK_FOR_VK_RESULT(vkBeginCommandBuffer(_command_buffer, &begin_info), "")
 }
 
 void CommandBuffer::end() {
-    if (vkEndCommandBuffer(_command_buffer) != VK_SUCCESS) {
-        throw std::runtime_error("Minor inconvenience: BUFFER RECORD FAIL!");
-    }
-
+    CHECK_FOR_VK_RESULT(vkEndCommandBuffer(_command_buffer), "")
 }
 
 void CommandBuffer::submit() {
@@ -68,9 +65,7 @@ void CommandBuffer::submit() {
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = ;
 
-    if (vkQueueSubmit(_device.get_graphics_queue(), 1, &submit_info, ) != VK_SUCCESS) {
-        throw std::runtime_error("");
-    }
+    CHECK_FOR_VK_RESULT(vkQueueSubmit(_device.get_graphics_queue(), 1, &submit_info, ), "")
     vkQueueWaitIdle(_device.get_graphics_queue());
 }
 
