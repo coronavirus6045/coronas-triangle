@@ -1,21 +1,15 @@
-5#include "vk_presentation.hpp"
+#include "vk_presentation.hpp"
 #include "vk_device.hpp"
 
 
-using HelloTriangle::presentation_setup;
 using HelloTriangle::Swapchain;
-//#if 0 //TODO: what am i gonna do with this? Do i initialize all variables needed for the member functions?
-//How do i deal with stuff that needs access to other parts(classes)
-presentation_setup::presentation_setup(VkDevice& device_arg, VkInstance& instance_arg, GLFWwindow* window_arg) : device{device_arg}, instance(instance_arg), window(window_arg) {
-
-}
-//#endif
-
+/*
 void presentation_setup::create_surface(VkInstance instance, GLFWwindow* window) {
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("Window surface error: \"I failed, son.\"");
+
     }
-}
+} */
 
 //VK_FORMAT_B8G8R8_SRGB
 void Swapchain::create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode) {
@@ -99,9 +93,7 @@ void Swapchain::create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR 
 
         swapchain_info.oldSwapchain = VK_NULL_HANDLE;
         
-        if (vkCreateSwapchainKHR(_device.get_device(), &swapchain_info, nullptr, &_swapchain)) {
-            throw std::runtime_error("Joever Error: Swap chain failed to cook");
-        }
+        CHECK_FOR_VK_RESULT(vkCreateSwapchainKHR(_device.get_device(), &swapchain_info, nullptr, &_swapchain), "")
         vkGetSwapchainImagesKHR(_device.get_device(), _swapchain, &image_count, nullptr);
         _swapchain_images.resize(image_count);
         vkGetSwapchainImagesKHR(_device.get_device(), _swapchain, &image_count, _swapchain_images.data());
@@ -123,9 +115,7 @@ void Swapchain::create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR 
             view_info.subresourceRange.baseArrayLayer = 0;
             view_info.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(_device.get_device(), &view_info, nullptr, &_swapchain_views[i]) != VK_SUCCESS) {
-                throw std::runtime_error("Joever Error: vkCreateImageView failed.");
-            }
+            CHECK_FOR_VK_RESULT(vkCreateImageView(_device.get_device(), &view_info, nullptr, &_swapchain_views[i]), "")
         }
 
         _surface = surface;
@@ -133,6 +123,7 @@ void Swapchain::create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR 
         _mode = mode;
 }
 
+/*
 void presentation_setup::cleanupSwapChain() {
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
@@ -143,6 +134,9 @@ void presentation_setup::cleanupSwapChain() {
         }
     vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
+
+
+//Put it to renderer.cpp
 
 void Swapchain::recreate(VkPhysicalDevice physical_device, VkDevice device, GLFWwindow* window, VkRenderPass pass) {
     int width = 0, height = 0;
@@ -162,29 +156,6 @@ void Swapchain::recreate(VkPhysicalDevice physical_device, VkDevice device, GLFW
         create_framebuffers(pass);
 }
 
-void presentation_setup::create_framebuffers(VkRenderPass pass) {
-    swapChainFramebuffers.resize(swapChainImageViews.size());
-        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-            VkImageView attachments[] = {
-                swapChainImageViews[i]
-            };
-
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = pass;
-            framebufferInfo.attachmentCount = 1;
-            framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = swapChainExtent.width;
-            framebufferInfo.height = swapChainExtent.height;
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("Fatal Joever ERROR:");
-            }
-        
-        }
-}
-
 presentation_setup::~presentation_setup() {
     cleanupSwapChain();
-}
+} */

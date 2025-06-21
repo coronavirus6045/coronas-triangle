@@ -209,10 +209,19 @@ RenderPass::~RenderPass() {
     vkDestroyRenderPass(_device.get_device(), _render_pass, nullptr);
 }
 
-Framebuffer::Framebuffer() {}
+Framebuffer::Framebuffer(Device& device) : _device(device) {
 
-Framebuffer::create(std::vector<coronas_triangle::image_creation::ImageTexture>) {
+}
+
+Framebuffer::create(Device& device, RenderPass& pass, std::vector<coronas_triangle::image_creation::ImageTexture>) {
     VkFramebufferCreateInfo framebuffer_info{};
     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebuffer_info.
+    framebuffer_info.renderPass = pass.get();
+    framebuffer_info.attachmentCount = ;
+    framebuffer_info.pAttachments = ;
+    framebuffer_info.width = ;
+    framebuffer_info.height = ;
+    framebuffer_info.layers = 1;
+
+    CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer), "")
 }

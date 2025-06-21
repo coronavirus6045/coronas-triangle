@@ -5,31 +5,22 @@
 
 
 namespace HelloTriangle {
-    const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-
-    struct SwapChainSupportDetails {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
-    };
-
     class Swapchain {
     public:
     Swapchain();
     ~Swapchain();
     void create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode);
-    void recreate(SDL_Window* window, ); //only native handles i could use are window and surface
-    void destroy();
+    VkSwapchainKHR& get() {return _swapchain;}
+    std::vector<VkImage>& get_images() {return _swapchain_images;}
     private:
-
     VkSwapchainKHR _swapchain;
     std::vector<VkImage> _swapchain_images;
     std::vector<VkImageView> _swapchain_views;
+
     VkExtent2D _extent;
     VkPresentModeKHR _mode;
     VkFormat _format;
+
     Device& _device;
     VkSurfaceKHR& _surface;
     };

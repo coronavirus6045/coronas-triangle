@@ -137,7 +137,7 @@ namespace HelloTriangle {
             VkFramebuffer& get() {return _framebuffer;}
         private:
             VkFramebuffer _framebuffer;
-
+            Device& _device;
     };
 
 }

@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "vk_buffers.hpp"
 #include "vk_device.hpp"
+#include "vk_image.hpp"
 #include <vulkan/vulkan_core.h>
 
 namespace HelloTriangle {
@@ -19,6 +20,8 @@ namespace HelloTriangle {
 
     Device& _device;
     };
+    // Let's go, gets grow, lets GROW a GARDEN!
+    // whoever said that above, please EXECUTE him!
     //Pool will have set creation.
     class DescriptorPool {
     public:
@@ -40,10 +43,10 @@ namespace HelloTriangle {
 
     void allocate(Device& device, DescriptorPool pool, DescriptorLayout layout);
     //
-    void write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, VkImageView image_view,);
+    void write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, uint64_t range, Image* image);
     VkDescriptorSet& get();
     private:
     VkDescriptorSet _descriptor_set;
-        Device& _device;
+    Device& _device;
     };
 }

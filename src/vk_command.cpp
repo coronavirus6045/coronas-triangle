@@ -4,8 +4,8 @@
 #include "vk_device.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
-using HelloTriangle::command_objects::CommandBuffer;
-using HelloTriangle::command_objects::CommandPool;
+using HelloTriangle::CommandBuffer;
+using HelloTriangle::CommandPool;
 using HelloTriangle::device_object;
 
 //command_objects::command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg) : physicalDevice(physical_device), device(device_arg), surface(surface_arg) {}

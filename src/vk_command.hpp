@@ -9,7 +9,6 @@
 
 
 namespace HelloTriangle {
-    namespace command_objects {
         class CommandPool {
             public:
             CommandPool(Device& device);
@@ -37,6 +36,6 @@ namespace HelloTriangle {
             Device& _device;
             //CommandPool& _command_pool;
         };
-    }
+
     //command wrappers for VkCmd*s coming soom
 }

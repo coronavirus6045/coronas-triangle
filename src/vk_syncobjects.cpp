@@ -1,57 +1,38 @@
 #include "vk_syncobjects.hpp"
 
-using HelloTriangle::SyncObjects;
+using HelloTriangle::SyncObjectMaker;
 using HelloTriangle::Semaphore;
 using HelloTriangle::Fence;
 
-void Semaphore::create(Device& device) {
+Semaphore SyncObjectMaker::create_semaphore() {
+    VkSemaphore semaphore;
+
     VkSemaphoreCreateInfo semaphore_info{};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    CHECK_FOR_VK_RESULT(vkCreateSemaphore(device.get_device(), &semaphore_info, nullptr, &_semaphore), "SEMAPHORE CREATE ERROR");
+    CHECK_FOR_VK_RESULT(vkCreateSemaphore(_device.get_device(), &semaphore_info, nullptr, &semaphore), "SEMAPHORE CREATE ERROR");
+
+    return (Semaphore) semaphore;
 }
 
 
-void Fence::create(Device& device) {
+Fence SyncObjectMaker::create_fence() {
+    VkFence fence;
+
     VkFenceCreateInfo fence_info{};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    CHECK_FOR_VK_RESULT(vkCreateFence(device.get_device(), &fence_info, nullptr, &_fence), "FENCE CREATE ERROR");
+    CHECK_FOR_VK_RESULT(vkCreateFence(_device.get_device(), &fence_info, nullptr, &fence), "FENCE CREATE ERROR");
+
+    return (Fence) fence;
 }
 
-
-sync_objects::SyncObjects(VkDevice& device_arg) : device(device_arg) {
-
-}
-
-void sync_objects::create_sync_objects() {
-    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        VkFenceCreateInfo fenceInfo{};
-        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS
-            || vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS
-            || vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-                throw std::runtime_error("SYNCHRONIZATION OBJECTS FAILED!!! JOEVER!");
-            }
-
-        }
-}
-
-sync_objects::~SyncObjects() {
-    for (size_t i; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-        vkDestroyFence(device, inFlightFences[i], nullptr);
-        
+void SyncObjectMaker::delete_sync_object(Fence fence, Semaphore semaphore) {
+    if (fence != nullptr) {
+        vkDestroyFence(_device.get_device(), (VkFence) fence, nullptr);
+    } else if (semaphore != nullptr) {
+        vkDestroySemaphore(_device.get_device(), (VkSemaphore) semaphore, nullptr);
     }
 }
+

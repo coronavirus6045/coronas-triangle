@@ -66,7 +66,8 @@ void Device::create_device(VkSurfaceKHR surface) {
         queue_infos.push_back(queue_info);
     }
 
-    std::vector<const char*> required_device_extensions = {}; //this screwed my clangd
+    //this screwed my clangd so ill use its absolute name instead of its enum (e.g. VK_KHR_swapchain instead of VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+    std::vector<const char*> required_device_extensions = {"VK_KHR_swapchain"};
 
     uint32_t extension_count = 0;
     vkEnumerateDeviceExtensionProperties(_physical_device, nullptr, &extension_count, nullptr);

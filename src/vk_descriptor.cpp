@@ -61,10 +61,11 @@ void DescriptorSet::allocate(Device& device, DescriptorPool pool, DescriptorLayo
     alloc_info.pSetLayouts = &layout.get_layout();
     //descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     CHECK_FOR_VK_RESULT(vkAllocateDescriptorSets(device.get_device(), &alloc_info, &_descriptor_set), "")
+    _device = device;
 }
 
 // Struct time!
-void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, VkDeviceSize range){
+void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, uint64_t range, Image* image){
     //for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 
     VkWriteDescriptorSet descriptor_write{};
@@ -72,26 +73,27 @@ void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descript
     descriptor_write.dstSet = _descriptor_set;
     descriptor_write.dstBinding = binding;
     descriptor_write.dstArrayElement = 0;
+
     descriptor_write.descriptorType = descriptor_type;
     descriptor_write.descriptorCount = 1;
-    descriptor_write.pBufferInfo = &buffer_info;
-    descriptor_write.pImageInfo = nullptr;
     //descriptor_write.pTexelBufferView = nullptr;
 
-    if (buffer != nullptr && range > 0) {
+    if (buffer && range > 0 && image == nullptr) {
         VkDescriptorBufferInfo buffer_info{};
         buffer_info.buffer = buffer->buffer();
         buffer_info.offset = 0;
-        buffer_info.range = ;
+        buffer_info.range = (VkDeviceSize) range;
 
         descriptor_write.pBufferInfo = &buffer_info;
-    } else if (image != nullptr) {
+    } else if (image && buffer == nullptr) {
         VkDescriptorImageInfo image_info{};
-        image_info.imageLayout = ;
-        image_info.imageView = ;
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView = image->get_image_view();
+
+        descriptor_write.pImageInfo = &image_info;
+    } else {
+        THROW_RUNTIME_ERROR("Invalid usage of write_descriptor()");
     }
 
     vkUpdateDescriptorSets(_device.get_device(), 1, &descriptor_write, 0, nullptr);
-
-    //}
 }

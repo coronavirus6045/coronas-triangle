@@ -41,7 +41,6 @@ namespace HelloTriangle {
         Buffer create_vertex_buffer(Device& device, VkCommandPool& command_pool, const std::vector<vertex> vertices);
         Buffer create_index_buffer(Device& device, VkCommandPool& command_pool, const std::vector<uint32_t> indices);
         Buffer create_uniform_buffers(Device& device);
-        void update_uniform_buffer(uint32_t current_frame, VkExtent2D extent);
         void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, VkCommandPool command_pool, VkQueue queue);
         uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 }

@@ -85,7 +85,7 @@ std::vector<Buffer> create_uniform_buffers(Device& device) {
         uniform_buffers[i].map_memory()
     }
 }
-void buffer_creation::copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, CommandPool command_pool, VkQueue queue) {
+void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, CommandPool command_pool, VkQueue queue) {
     VkCommandBufferAllocateInfo allocinfo{};
     allocinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;

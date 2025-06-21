@@ -18,8 +18,8 @@ namespace HelloTriangle {
         public:
             Device();
             ~Device();
-            void query_physical_device();
-            void create_device();
+            void query_physical_device(VkInstance instance);
+            void create_device(VkSurfaceKHR surface);
             VkPhysicalDeviceProperties& get_device_properties();
             VkPhysicalDevice& get_physical_device();
             VkDevice& get_device() {return _device;}

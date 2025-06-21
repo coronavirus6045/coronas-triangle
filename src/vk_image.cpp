@@ -7,34 +7,46 @@
 
 using namespace coronas_triangle;
 using namespace HelloTriangle;
-using image_creation::ImageTexture;
+using image_creation::Image;
 using buffer_creation::Buffer;
 using buffer_creation::find_memory_type;
 
+//should i do it
+//This is a wrapper for crating native API image
+//This may be placed on renderer backend
+Image load_image_from_file(Device& device, std::string& path) {
+    int32_t image_width = 0;
+    int32_t image_height = 0;
+    int32_t image_channels = 0;
 
-void ImageTexture::load_image_file(std::string& path) {
-    stbi_uc* pixels = stbi_load(path.c_str(), &_image_width, &_image_height, &_image_channels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(path.c_str(), &image_width, &image_height, &image_channels, STBI_rgb_alpha);
     
-    VkDeviceSize image_size = _image_width * _image_height * 4;
+    VkDeviceSize image_size = image_width * image_height * 4;
+
+    Image image;
 
     if (!pixels) {
         throw std::runtime_error("Image texture error.");
     }
 
-    Buffer staging_buffer(_device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    Buffer staging_buffer(device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     staging_buffer.map_memory((void*) pixels, image_size, 0);
     staging_buffer.unmap_memory();
 
     stbi_image_free(pixels);
 
-    create_image(_image_width, _image_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    image.create(device, image_width, image_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    copy_buffer_to_image(device, staging_buffer, image, image_width, image_height);
+    transition_image_layout(device, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // thanks to destructors, staging buffer is bye byee
 }
-void ImageTexture::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkImageCreateInfo image_info{};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.extent.height = static_cast<uint32_t>(_image_height);
-    image_info.extent.width = static_cast<uint32_t>(_image_width);
+    image_info.extent.height = static_cast<uint32_t>(height);
+    image_info.extent.width = static_cast<uint32_t>(width);
     image_info.extent.depth = 1;
     image_info.mipLevels = 1;
     image_info.arrayLayers = 1; 
@@ -46,23 +58,19 @@ void ImageTexture::create_image(uint32_t width, uint32_t height, VkFormat format
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.flags = 0;
 
-    if (vkCreateImage(_device.device, &image_info, nullptr, &_image) != VK_SUCCESS) {
-        throw std::runtime_error("Image error");
-    }
+    CHECK_FOR_VK_RESULT(vkCreateImage(_device.get_device(), &image_info, nullptr, &_image), "")
 
     VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(_device.device, _image, &memory_requirements);
+    vkGetImageMemoryRequirements(_device.get_device(), _image, &memory_requirements);
 
     VkMemoryAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     alloc_info.allocationSize = memory_requirements.size;
     alloc_info.memoryTypeIndex = find_memory_type(_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    if (vkAllocateMemory(p_device.device, &alloc_info, nullptr, &_image_memory) != VK_SUCCESS) {
-        throw std::runtime_error("");
-    }
+    CHECK_FOR_VK_RESULT(vkAllocateMemory(_device.get_device(), &alloc_info, nullptr, &_image_memory), "")
 
-    vkBindImageMemory(p_device.device, _image, _image_memory, 0);
+    vkBindImageMemory(_device.get_device(), _image, _image_memory, 0);
 
     VkImageViewCreateInfo view_info{};
     view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -83,16 +91,15 @@ void ImageTexture::create_image(uint32_t width, uint32_t height, VkFormat format
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    if (vkCreateImageView(p_device.device, &view_info, nullptr, &_image_view) != VK_SUCCESS) {
+    if (vkCreateImageView(_device.get_device(), &view_info, nullptr, &_image_view) != VK_SUCCESS) {
 
     }
+    //sampler
+
+    _device = device;
 }
 //pisney dixar
-void image_creation::transition_image_layout(Device& device, ImageTexture image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
-    command_objects::CommandBuffer transition_command_buffer(device, command_pool, );
-
-    transition_command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
+void transition_image_layout(Device& device, CommandBuffer& command_buffer, Image image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     barrier.oldLayout = old_layout;
@@ -108,15 +115,35 @@ void image_creation::transition_image_layout(Device& device, ImageTexture image,
     barrier.srcAccessMask = 0;
     barrier.dstAccessMask = 0;
 
-    vkCmdPipelineBarrier(transition_command_buffer, );
-    transition_command_buffer.end();
-    transition_command_buffer.submit();
+    VkPipelineStageFlags src_stage;
+    VkPipelineStageFlags dst_stage;
+
+    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        THROW_RUNTIME_ERROR("");
+    }
+
+    //long ass parameters
+    vkCmdPipelineBarrier(command_buffer.get(),
+                         src_stage, dst_stage, 0, 0, nullptr, 0,
+                         nullptr, 1, &barrier
+                         );
 }
 
-void copy_buffer_to_image(Device& device, Buffer& buffer, ImageTexture& image, uint32_t width, uint32_t height) {
-    command_objects::CommandBuffer copy_command_buffer(device, command_pool, );
-
-    copy_command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+void Image::copy_buffer_to_image(CommandBuffer& command_buffer, void* data, uint32_t width, uint32_t height) {
+    VkDeviceSize size = width * height * 4;
+    Buffer buffer(_device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -131,9 +158,5 @@ void copy_buffer_to_image(Device& device, Buffer& buffer, ImageTexture& image, u
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
 
-    vkCmdCopyBufferToImage(copy_command_buffer.get(), buffer.buffer(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-
-    copy_command_buffer.end();
-    copy_command_buffer.submit();
+    vkCmdCopyBufferToImage(command_buffer.get(), buffer.buffer(), _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
