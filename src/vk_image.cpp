@@ -1,20 +1,19 @@
 #include "vk_image.hpp"
-#include "src/common.hpp"
-#include "src/vk_buffers.hpp"
+#include "common.hpp"
+#include "vk_buffers.hpp"
 #include <cstdint>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
-using namespace coronas_triangle;
 using namespace HelloTriangle;
-using image_creation::Image;
-using buffer_creation::Buffer;
-using buffer_creation::find_memory_type;
+using HelloTriangle::Image;
+using HelloTriangle::Buffer;
+using HelloTriangle::find_memory_type;
 
 //should i do it
 //This is a wrapper for crating native API image
 //This may be placed on renderer backend
-Image load_image_from_file(Device& device, std::string& path) {
+Image HelloTriangle::load_image_from_file(Device& device, std::string& path) {
     int32_t image_width = 0;
     int32_t image_height = 0;
     int32_t image_channels = 0;
@@ -95,7 +94,8 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
 
     }
     //sampler
-
+    _image_width = width;
+    _image_height = height;
     _device = device;
 }
 //pisney dixar

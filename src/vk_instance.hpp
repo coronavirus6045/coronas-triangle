@@ -7,22 +7,12 @@
 namespace HelloTriangle {
     class Instance {
     public:
-    Instance();
+    Instance(const std::string& app_name, const std::vector<const char*> enabled_extensions);
     ~Instance();
-    void create(const std::string& app_name, const std::vector<const char*> enabled_extensions, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback);
-    VkInstance& get();
+    void create(const std::string& app_name, const std::vector<const char*> enabled_extensions);
+    VkInstance& get() {return _instance;}
     private:
     VkInstance _instance;
-    };
-    class create_instance {
-        public:
-        create_instance(const std::string& app_name, const std::vector<const char*> enabled_extensions, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback);
-        ~create_instance();
-        VkInstance& get_instance() {return instance;}
-        private:
-        VkInstance instance;
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-
     };
 }
 

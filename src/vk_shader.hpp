@@ -6,13 +6,14 @@
 namespace HelloTriangle {
 class Shader {
     public:
+    Shader();
     Shader(Device& device, std::string file_path);
     ~Shader();
-    VkShaderModule& get() {return p_shader_module;}
+    VkShaderModule& get() {return _shader_module;}
     private:
-    VkShaderModule p_shader_module;
+    VkShaderModule _shader_module;
 
-    Device& p_device;
+    Device& _device;
 };
 
 }

@@ -2,60 +2,38 @@
 
 #include "common.hpp"
 #include "vk_image.hpp"
+#include "vk_device.hpp"
+#include "vk_syncobjects.hpp"
 
 
 namespace HelloTriangle {
     class Swapchain {
     public:
     Swapchain();
+    Swapchain(Device& device, VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode, VkExtent2D window_extent);
+    // needs constructor that calls create()
     ~Swapchain();
-    void create(VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode);
+    void create(Device& device, VkSurfaceKHR& surface, VkFormat format, VkPresentModeKHR mode, VkExtent2D window_extent);
     VkSwapchainKHR& get() {return _swapchain;}
-    std::vector<VkImage>& get_images() {return _swapchain_images;}
-    private:
+    VkResult acquire_next_image(Semaphore signal_semaphore, Fence signal_fence);
+    VkResult present(std::vector<Semaphore> signal_semaphores);
+    std::vector<VkImage>& get_images() { return _swapchain_images; }
+    std::vector<VkImageView>& get_image_views() {return _swapchain_views;}
+    VkFormat get_format() {return _format;}
+    uint32_t get_image_width() { return _extent.width; }
+    uint32_t get_image_height() { return _extent.height; }
+
+private:
     VkSwapchainKHR _swapchain;
     std::vector<VkImage> _swapchain_images;
     std::vector<VkImageView> _swapchain_views;
+    uint32_t _image_index;
 
     VkExtent2D _extent;
     VkPresentModeKHR _mode;
     VkFormat _format;
 
-    Device& _device;
-    VkSurfaceKHR& _surface;
+    Device* _device;
     };
 
-    class presentation_setup {
-        public:
-        presentation_setup(VkDevice& device_arg, VkInstance& instance, GLFWwindow* window_arg);
-        ~presentation_setup();
-        void create_surface(VkInstance instance, GLFWwindow* window);
-        static SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface);
-        void create_swapchain(VkPhysicalDevice physical_device, VkDevice device);
-        void create_image_views(VkDevice device);
-        void recreate_swap_chain(VkPhysicalDevice physical_device, VkDevice device, GLFWwindow* window, VkRenderPass pass);
-        void create_framebuffers(VkRenderPass pass);
-        VkSurfaceKHR& get_surface() {return surface;}
-        VkExtent2D& get_extent() {return swapChainExtent;}
-        VkFormat& get_format() {return swapChainImageFormat;}
-        VkSwapchainKHR& get_swap_chain() {return swapchain;}
-        std::vector<VkFramebuffer>& get_framebuffers() {return swapChainFramebuffers;}
-        //stroke
-        private:
-        VkDevice& device;
-        VkInstance& instance;
-        GLFWwindow* window;
-        VkSurfaceKHR surface;     
-        VkSwapchainKHR swapchain;
-        std::vector<VkImage> swapChainImages;
-        VkFormat swapChainImageFormat;
-        VkExtent2D swapChainExtent;
-        std::vector<VkImageView> swapChainImageViews;
-        std::vector<VkFramebuffer> swapChainFramebuffers;
-
-        VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-        VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-        VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);
-        void cleanupSwapChain();
-    };
 }

@@ -15,9 +15,9 @@ std::runtime_error(message "\n" " \
 ⠀⠀⠀⣴⣿⣾⣿⣿⣿⡿⡽⡑⢌⠪⡢⡣⣣⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n⠀\
 ⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀\n⠀\
 ⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀  ⠀\
-") \
-//"in line " __LINE__ ", function: " function \
-);
+");
+//"in line " __LINE__ ", function: " function
+//);
 
 #define CHECK_FOR_VK_RESULT(function, message) \
-if (function != VK_SUCCESS) { THROW_RUNTIME_ERROR(message "\n "); } \
+if (function != VK_SUCCESS) { THROW_RUNTIME_ERROR(message "\n "); }

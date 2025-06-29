@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "vk_shader.hpp"
 #include "vk_descriptor.hpp"
+#include "vk_presentation.hpp"
 #include "vk_image.hpp"
 
 
@@ -49,6 +50,7 @@ namespace HelloTriangle {
     };
     class PipelineLayout {
         public:
+            PipelineLayout();
             PipelineLayout(Device& device, std::vector<DescriptorLayout> layouts, VkPipelineLayoutCreateFlags flags);
             ~PipelineLayout();
             void set_layouts(std::vector<DescriptorLayout> layouts);
@@ -60,7 +62,7 @@ namespace HelloTriangle {
             VkPipelineLayout _pipeline_layout;
             std::vector<VkDescriptorSetLayout> _layouts;
 
-            Device& _device;
+            Device* _device;
     };
 
     //do we NEED this? ill maybe separate to PipelineInfo and its
@@ -117,6 +119,7 @@ namespace HelloTriangle {
 
     class RenderPass {
     public:
+    RenderPass();
     RenderPass(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies);
     ~RenderPass();
     void create(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies);
@@ -126,18 +129,20 @@ namespace HelloTriangle {
     VkRenderPass _render_pass;
     //depth coming soon
     //maybe ill remove if i decide to use dynamic rendering
-    Device& _device;
+    Device* _device;
     };
 
     class Framebuffer {
         public:
             Framebuffer();
+            Framebuffer(Device& device, RenderPass& pass, Image& image);
             ~Framebuffer();
-            void create();
+            void create(Device& device, RenderPass& pass, Image& image);
+            void create(Device& device, RenderPass& pass, Swapchain& swapchain);
             VkFramebuffer& get() {return _framebuffer;}
         private:
             VkFramebuffer _framebuffer;
-            Device& _device;
+            Device* _device;
     };
 
 }

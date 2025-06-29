@@ -2,11 +2,11 @@
 
 using HelloTriangle::Shader;
 
-Shader::Shader(Device& device, std::string file_path) : p_device(device) {
+Shader::Shader(Device& device, std::string file_path) : _device(device) {
     std::ifstream shader_file(file_path, std::ios::ate | std::ios::binary);
 
     if (!shader_file.is_open()) {
-        throw std::runtime_error("Joever error: can't read shader file!");
+        THROW_RUNTIME_ERROR("Joever error: can't read shader file!");
     }
 
     std::size_t file_size = (std::size_t) shader_file.tellg();
@@ -20,5 +20,9 @@ Shader::Shader(Device& device, std::string file_path) : p_device(device) {
     createInfo.codeSize = buffer.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
-    CHECK_FOR_VK_RESULT(vkCreateShaderModule(p_device.get_device(), &createInfo, nullptr, &p_shader_module), "")
+    CHECK_FOR_VK_RESULT(vkCreateShaderModule(_device.get_device(), &createInfo, nullptr, &_shader_module), "")
+}
+
+Shader::~Shader() {
+    vkDestroyShaderModule(_device.get_device(), _shader_module, nullptr);
 }

@@ -6,7 +6,7 @@ subdir('src')
 subdir('src/third_party/')
 
 deps = [dependency('dl'),
-        dependency('glfw3', modules: ['glfw']),
+        dependency('sdl2'),
        
 ]
 

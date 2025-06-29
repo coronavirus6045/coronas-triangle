@@ -1,45 +1,48 @@
 #include "vk_command.hpp"
 #include "common.hpp"
-#include "scene/scene_obj.hpp"
 #include "vk_device.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 using HelloTriangle::CommandBuffer;
 using HelloTriangle::CommandPool;
-using HelloTriangle::device_object;
+using HelloTriangle::Device;
 
 //command_objects::command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg) : physicalDevice(physical_device), device(device_arg), surface(surface_arg) {}
+CommandPool::CommandPool(Device& device) {
+    create(device);
+}
 
-CommandPool::CommandPool(device_object& device) : _device(device) {
-    QueueFamilyIndices queueFamilyIndices = create_device::findQueueFamilies(_device, surface);
-
+void CommandPool::create(Device& device) {
         VkCommandPoolCreateInfo pool_info{};
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        pool_info.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        pool_info.queueFamilyIndex = device.get_queue_family();
 
-        if (vkCreateCommandPool(_device.device, &pool_info, nullptr, &_command_pool) != VK_SUCCESS) {
+        if (vkCreateCommandPool(device.get_device(), &pool_info, nullptr, &_command_pool) != VK_SUCCESS) {
             throw std::runtime_error("JOEVER ERROR SUPER LEVEL: COMMAND POOL FAILED!");
         }
+        _device = &device;
 }
 
 CommandPool::~CommandPool() {
-    vkDestroyCommandPool(_device.device, _command_pool, nullptr);
+    vkDestroyCommandPool(_device->get_device(), _command_pool, nullptr);
 }
 
-CommandBuffer::CommandBuffer(Device& device, CommandPool& CommandPool, VkCommandBufferLevel level) : _device(device) {
+CommandBuffer::CommandBuffer() {}
 
+CommandBuffer::CommandBuffer(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) {
+    create(device, command_pool, level);
 }
 
-void CommandBuffer::create(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) : _device(device), _command_pool(command_pool) {
+void CommandBuffer::create(Device& device, CommandPool& command_pool, VkCommandBufferLevel level) {
     VkCommandBufferAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = command_pool.get();
     alloc_info.level = level;
     alloc_info.commandBufferCount = 1;
     
-    CHECK_FOR_VK_RESULT(vkAllocateCommandBuffers(_device.get_device(), &alloc_info, &_command_buffer), "")
-    _device = device;
+    CHECK_FOR_VK_RESULT(vkAllocateCommandBuffers(device.get_device(), &alloc_info, &_command_buffer), "")
+    _device = &device;
 }
 
 void CommandBuffer::begin(VkCommandBufferUsageFlags usage) {
@@ -55,22 +58,27 @@ void CommandBuffer::end() {
     CHECK_FOR_VK_RESULT(vkEndCommandBuffer(_command_buffer), "")
 }
 
-void CommandBuffer::submit() {
+void CommandBuffer::reset() {
+    vkResetCommandBuffer(_command_buffer, 0);
+}
+
+void CommandBuffer::submit(std::vector<Semaphore>* wait, std::vector<Semaphore>* signal, Fence fence) {
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &_command_buffer;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = ;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = ;
+    submit_info.waitSemaphoreCount = wait ? wait->size() : 0;
+    submit_info.pWaitSemaphores = wait ? wait->data() : nullptr;
+    submit_info.signalSemaphoreCount = signal ? signal->size() : 0;
+    submit_info.pSignalSemaphores = signal ? signal->data() : nullptr;
 
-    CHECK_FOR_VK_RESULT(vkQueueSubmit(_device.get_graphics_queue(), 1, &submit_info, ), "")
-    vkQueueWaitIdle(_device.get_graphics_queue());
+    CHECK_FOR_VK_RESULT(vkQueueSubmit(_device->get_graphics_queue(), 1, &submit_info, fence), "")
+    vkQueueWaitIdle(_device->get_graphics_queue());
 }
 
 
 //Will now be separate, todo: abstract all VkCmds. but for now use VkCmd*s instead in main()
+/*
 void command_objects::record_CommandBuffer(uint32_t currentFrame,VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipelineLayout pipelineLayout, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices, VkBuffer indexBuffer, const std::vector<uint32_t> indices, std::vector<VkDescriptorSet> descriptorSets) {
     VkCommandBufferBeginInfo begin_info{};
          begin_info.sType = VK_STRUCTURE_TYPE_CommandBuffer_BEGIN_INFO;
@@ -125,5 +133,4 @@ void command_objects::record_CommandBuffer(uint32_t currentFrame,VkCommandBuffer
 }
 
 
-
-//i lack design stuff 
+*/

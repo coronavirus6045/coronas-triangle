@@ -18,15 +18,17 @@ namespace HelloTriangle {
             void create(Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
             //image and its memory
             void copy_buffer_to_image(CommandBuffer& command_buffer, void* data, uint32_t width, uint32_t height);
-            const VkImage& get_image() const {return _image;}
-            const VkDeviceMemory& get_image_memory() const {return _image_memory;}
-            const VkImageView& get_image_view() const {return _image_view;}
+            VkImage& get_image() {return _image;}
+            VkDeviceMemory& get_image_memory() {return _image_memory;}
+            VkImageView& get_image_view() {return _image_view;}
+            uint32_t get_image_width() {return _image_width;}
+            uint32_t get_image_height() {return _image_height;}
             private:
             VkImage _image;
             VkDeviceMemory _image_memory;
             VkImageView _image_view;
-            //int32_t _image_width;
-            //int32_t _image_height;
+            uint32_t _image_width;
+            uint32_t _image_height;
             //int32_t _image_channels;
 
             Device& _device;

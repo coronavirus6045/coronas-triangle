@@ -13,9 +13,11 @@
 #include <chrono>
 
 namespace HelloTriangle {
-    // We'll use VMA later5
-        class Buffer { //buffer object wrapper so i can have both buffer and its memory in one object
+    // We'll use VMA later
+        class Buffer {
             public:
+            Buffer();
+            //Buffer(const Buffer& buffer);
             Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
             ~Buffer();
             void create(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
@@ -27,7 +29,7 @@ namespace HelloTriangle {
             //void* data - anything like vertices, indices, etc. Needs to cast to void pointer
             void map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags = 0);
             void unmap_memory();
-            void update_memory_map(void* data);
+            void update_memory_map(void* data, uint64_t size);
 
             private:
             void* _buffer_map;
@@ -35,12 +37,12 @@ namespace HelloTriangle {
             VkDeviceMemory _buffer_memory;
             VkDeviceSize _buffer_size;
             
-            Device& _device;
+            Device* _device;
         };
         //Wrappers for different buffers but you can manually do it.
-        Buffer create_vertex_buffer(Device& device, VkCommandPool& command_pool, const std::vector<vertex> vertices);
-        Buffer create_index_buffer(Device& device, VkCommandPool& command_pool, const std::vector<uint32_t> indices);
-        Buffer create_uniform_buffers(Device& device);
-        void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, VkCommandPool command_pool, VkQueue queue);
+        Buffer create_vertex_buffer(Device& device, CommandPool& command_pool, const std::vector<vertex> vertices);
+        Buffer create_index_buffer(Device& device, CommandPool& command_pool, const std::vector<uint32_t> indices);
+        Buffer create_uniform_buffer(Device& device, void* data, uint64_t size);
+        void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, CommandPool& command_pool);
         uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 }

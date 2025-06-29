@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <fstream>
 #include <ios>
-#define STB_IMAGE_IMPLEMENTATION
-#include "third_party/stb/stb_image.h"
+//#define STB_IMAGE_IMPLEMENTATION
+//#include "third_party/stb/stb_image.h"
 #include "third_party/volk.h"
 #define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
+#include <array>
 #include <cstring>
 #include <optional>
 #include <set>
@@ -27,6 +28,7 @@
 #include <limits>
 #include <memory>
 #include <fstream>
+#include <functional>
 #include "vk_macros.hpp"
 
 #ifdef NDEBUG

@@ -19,3 +19,6 @@ void init_window::framebufferResizeCallback(GLFWwindow* window, int width, int h
         auto app = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
         app ->framebufferResized = true;
 }
+
+//last one is this
+//https://wiki.libsdl.org/SDL2/FrontPage

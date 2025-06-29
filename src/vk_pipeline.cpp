@@ -1,6 +1,4 @@
 #include "vk_pipeline.hpp"
-#include "load_file.hpp"
-#include "scene/scene_obj.hpp"
 #include "vk_shader.hpp"
 #include <cstdint>
 using HelloTriangle::PipelineMaker;
@@ -93,7 +91,7 @@ PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info
 
     VkPipeline pipeline;
     //VkPipelineDepthStencilStateCreateInfo
-    CHECK_FOR_VK_RESULT(vkCreateGraphicsPipelines(_device.get_device(), nullptr, 1, &pipeline_info, nullptr, &pipeline), "");
+    CHECK_FOR_VK_RESULT(vkCreateGraphicsPipelines(_device.get_device(), nullptr, 1, &pipeline_info, nullptr, &pipeline), "")
     _shader_stage_infos.clear();
     return (PipelineHandle) pipeline;
 }
@@ -111,7 +109,7 @@ void PipelineMaker::delete_pipeline(PipelineHandle pipeline) {
     vkDestroyPipeline(_device.get_device(), (VkPipeline) pipeline, nullptr);
 }
 
-PipelineLayout::PipelineLayout(Device& device, std::vector<DescriptorLayout> layouts, VkPipelineLayoutCreateFlags flags) : _device(device) {
+PipelineLayout::PipelineLayout(Device& device, std::vector<DescriptorLayout> layouts, VkPipelineLayoutCreateFlags flags) {
     set_layouts(layouts);
     create(device, flags);
 }
@@ -128,12 +126,12 @@ void PipelineLayout::create(Device& device, VkPipelineLayoutCreateFlags flags) {
     layout_info.flags = flags;
     layout_info.setLayoutCount = (uint32_t) _layouts.size();
     layout_info.pSetLayouts = _layouts.data();
-    CHECK_FOR_VK_RESULT(vkCreatePipelineLayout(device.get_device(), &layout_info, nullptr, &_pipeline_layout), "");
-    _device = device;
+    CHECK_FOR_VK_RESULT(vkCreatePipelineLayout(device.get_device(), &layout_info, nullptr, &_pipeline_layout), "")
+    _device = &device;
 }
 
 PipelineLayout::~PipelineLayout() {
-    vkDestroyPipelineLayout(_device.get_device(), _pipeline_layout, nullptr);
+    vkDestroyPipelineLayout(_device->get_device(), _pipeline_layout, nullptr);
 }
 
 VkAttachmentReference RenderPass::_create_reference(RenderAttachmentReference ref) {
@@ -143,7 +141,7 @@ VkAttachmentReference RenderPass::_create_reference(RenderAttachmentReference re
     return _ref;
 }
 
-RenderPass::RenderPass(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies) : _device(device) {
+RenderPass::RenderPass(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies) {
     create(device, subpasses, attachments, dependencies);
 }
 
@@ -200,28 +198,60 @@ void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vec
     render_pass_info.dependencyCount = _dependencies.size();
     render_pass_info.pDependencies = _dependencies.data();
 
-    CHECK_FOR_VK_RESULT(vkCreateRenderPass(device.get_device(), &render_pass_info, nullptr, &_render_pass), "");
+    CHECK_FOR_VK_RESULT(vkCreateRenderPass(device.get_device(), &render_pass_info, nullptr, &_render_pass), "")
     //This is in case if its created through this instead of the constructor. it looks kinda stupid but since its a reference, who cares?
-    _device = device;
+    _device = &device;
 }
 
 RenderPass::~RenderPass() {
-    vkDestroyRenderPass(_device.get_device(), _render_pass, nullptr);
+    vkDestroyRenderPass(_device->get_device(), _render_pass, nullptr);
 }
 
-Framebuffer::Framebuffer(Device& device) : _device(device) {
+Framebuffer::Framebuffer() {}
 
+Framebuffer::Framebuffer(Device& device, RenderPass& pass, Image& image) {
+    create(device, pass, image);
 }
 
-Framebuffer::create(Device& device, RenderPass& pass, std::vector<coronas_triangle::image_creation::ImageTexture>) {
+void Framebuffer::create(Device& device, RenderPass& pass, Image& image) {
     VkFramebufferCreateInfo framebuffer_info{};
     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebuffer_info.renderPass = pass.get();
-    framebuffer_info.attachmentCount = ;
-    framebuffer_info.pAttachments = ;
-    framebuffer_info.width = ;
-    framebuffer_info.height = ;
+    framebuffer_info.attachmentCount = 1;
+
+    framebuffer_info.pAttachments = &image.get_image_view();
+    framebuffer_info.width = image.get_image_width();
+    framebuffer_info.height = image.get_image_height();
     framebuffer_info.layers = 1;
 
     CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer), "")
+
+    _device = &device;
+}
+
+void Framebuffer::create(Device& device, RenderPass& pass, Swapchain& swapchain) {
+    VkFramebufferCreateInfo framebuffer_info{};
+    framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebuffer_info.renderPass = pass.get();
+    framebuffer_info.attachmentCount = 1;
+
+    std::array<VkImageView, MAX_FRAMES_IN_FLIGHT> views; //I could do a C-style array
+    //views.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        views[i] = swapchain.get_image_views()[i];
+    }
+
+    framebuffer_info.pAttachments = views.data();
+    framebuffer_info.width = swapchain.get_image_width();
+    framebuffer_info.height = swapchain.get_image_height();
+    framebuffer_info.layers = 1;
+
+    CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer), "")
+
+    _device = &device;
+}
+
+Framebuffer::~Framebuffer() {
+    vkDestroyFramebuffer(_device->get_device(), _framebuffer, nullptr);
 }

@@ -9,6 +9,7 @@
 namespace HelloTriangle {
     class DescriptorLayout {
     public:
+    DescriptorLayout();
     DescriptorLayout(Device& device);
     ~DescriptorLayout();
     void create(Device& device);
@@ -18,35 +19,38 @@ namespace HelloTriangle {
     VkDescriptorSetLayout _descriptor_layout;
     std::vector<VkDescriptorSetLayoutBinding> _bindings;
 
-    Device& _device;
+    Device* _device;
     };
     // Let's go, gets grow, lets GROW a GARDEN!
     // whoever said that above, please EXECUTE him!
     //Pool will have set creation.
     class DescriptorPool {
     public:
+    DescriptorPool();
     DescriptorPool(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type);
     ~DescriptorPool();
     void create(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type);
     void reset();
-    VkDescriptorPool& get();
+    VkDescriptorPool& get() {return _descriptor_pool;}
 
     private:
     VkDescriptorPool _descriptor_pool;
+    Device* _device;
     };
     //Constructor will allocate but you can reallocate
 
     class DescriptorSet {
     public:
     DescriptorSet();
+        // constructor that calls allocate()
     ~DescriptorSet();
 
     void allocate(Device& device, DescriptorPool pool, DescriptorLayout layout);
     //
     void write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, uint64_t range, Image* image);
-    VkDescriptorSet& get();
+    VkDescriptorSet& get() {return _descriptor_set;}
     private:
     VkDescriptorSet _descriptor_set;
-    Device& _device;
+    Device* _device;
     };
 }

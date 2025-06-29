@@ -1,9 +1,12 @@
 #include "vk_instance.hpp"
-#include "vk_debugmsg.hpp"
 
 using HelloTriangle::Instance;
 
-void Instance::create(const std::string& app_name, const std::vector<const char*> enabled_extensions, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback) {
+Instance::Instance(const std::string& app_name, const std::vector<const char*> enabled_extensions) {
+    create(app_name, enabled_extensions);
+}
+
+void Instance::create(const std::string& app_name, const std::vector<const char*> enabled_extensions) {
     volkInitialize();
     VkApplicationInfo app_info{}; //Fill in this struct for information about app (in case of driver optimizations)
         app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO; //Structure type
@@ -17,9 +20,10 @@ void Instance::create(const std::string& app_name, const std::vector<const char*
         instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO; //Structure type
         instance_info.pApplicationInfo = &app_info; //pointer to app info
 
+
         instance_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size()); //Enabled extension count
         instance_info.ppEnabledExtensionNames = enabled_extensions.data(); //Extension count
-    
+    /*
     if (enableValidationLayers && debugCallback != nullptr) {
         instance_info.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         instance_info.ppEnabledLayerNames = validationLayers.data();
@@ -30,10 +34,11 @@ void Instance::create(const std::string& app_name, const std::vector<const char*
         instance_info.enabledLayerCount = 0;
 
         instance_info.pNext = nullptr;
-    }
-    auto extensions = debug_setup::get_extensions();
-    instance_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    instance_info.ppEnabledExtensionNames = extensions.data();
+    } */
+    //auto extensions = debug_setup::get_extensions();
+
+    //instance_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    //instance_info.ppEnabledExtensionNames = extensions.data();
 
 
     CHECK_FOR_VK_RESULT(vkCreateInstance(&instance_info, nullptr, &_instance), "Unable to create instance!")
