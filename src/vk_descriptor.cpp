@@ -13,9 +13,37 @@ using HelloTriangle::DescriptorSet;
 
 //Descriptors are for shaders to access resources
 //Descriptor layout
-DescriptorLayout::DescriptorLayout(Device& device) {
-    create(device);
+DescriptorLayout::DescriptorLayout() {
+    //create(device);
 }
+
+DescriptorLayout::DescriptorLayout(const DescriptorLayout& layout) {
+    *this = layout;
+}
+
+DescriptorLayout::DescriptorLayout(DescriptorLayout&& layout) noexcept {
+    *this = std::move(layout);
+}
+
+DescriptorLayout& DescriptorLayout::operator=(const DescriptorLayout& layout) {
+    std::cout << "dl copy\n";
+    _descriptor_layout = layout._descriptor_layout;
+    _bindings = layout._bindings;
+    _device = layout._device;
+    return *this;
+}
+
+DescriptorLayout& DescriptorLayout::operator=(DescriptorLayout&& layout) noexcept {
+    std::cout << "dl move\n";
+    _descriptor_layout = layout._descriptor_layout;
+    _bindings = layout._bindings;
+    _device = layout._device;
+
+    layout._descriptor_layout = nullptr;
+    layout._device = nullptr;
+    return *this;
+}
+
 
 void DescriptorLayout::create(Device& device) {
     VkDescriptorSetLayoutCreateInfo layout_info{};
@@ -39,6 +67,7 @@ void DescriptorLayout::add_binding(uint32_t binding, uint32_t descriptor_count, 
 }
 
 DescriptorLayout::~DescriptorLayout() {
+    std::cout << "WTF\n";
     vkDestroyDescriptorSetLayout(_device->get_device(), _descriptor_layout, nullptr);
 }
 
@@ -46,6 +75,28 @@ DescriptorPool::DescriptorPool(Device& device, uint32_t max_sets, VkDescriptorTy
     create(device, max_sets, descriptor_type);
 }
 
+DescriptorPool::DescriptorPool(const DescriptorPool& pool) {
+    *this = pool;
+}
+
+DescriptorPool::DescriptorPool(DescriptorPool&& pool) noexcept {
+    *this = std::move(pool);
+}
+
+DescriptorPool& DescriptorPool::operator=(const DescriptorPool& pool) {
+    _descriptor_pool = pool._descriptor_pool;
+    _device = pool._device;
+    return *this;
+}
+
+DescriptorPool& DescriptorPool::operator=(DescriptorPool&& layout) noexcept {
+    _descriptor_pool = layout._descriptor_pool;
+    _device = layout._device;
+
+    layout._descriptor_pool = nullptr;
+    layout._device = nullptr;
+    return *this;
+}
 
 void DescriptorPool::create(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type) {
     VkDescriptorPoolSize pool_size{};
@@ -68,15 +119,17 @@ DescriptorPool::~DescriptorPool() {
 
 DescriptorSet::DescriptorSet() {}
 
-void DescriptorSet::allocate(Device& device, DescriptorPool pool, DescriptorLayout layout) {
+void DescriptorSet::allocate(Device& device, DescriptorPool& pool, DescriptorLayout& layout) {
     //std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &layout.get_layout();
+    VkDescriptorSetLayout* ly = &layout.get_layout();
+    alloc_info.pSetLayouts = ly;
     //descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    CHECK_FOR_VK_RESULT(vkAllocateDescriptorSets(device.get_device(), &alloc_info, &_descriptor_set), "")
+    //CHECK_FOR_VK_RESULT(vkAllocateDescriptorSets(device.get_device(), &alloc_info, &_descriptor_set), "")
+    VkResult res = vkAllocateDescriptorSets(device.get_device(), &alloc_info, &_descriptor_set);
     _device = &device;
 }
 
@@ -114,6 +167,7 @@ void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descript
     }
 
     vkUpdateDescriptorSets(_device->get_device(), 1, &descriptor_write, 0, nullptr);
+
 }
 
 DescriptorSet::~DescriptorSet() {}

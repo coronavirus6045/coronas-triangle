@@ -1,7 +1,7 @@
 #pragma once
 
 #define THROW_RUNTIME_ERROR(message) \
-std::runtime_error(message "\n" " \
+throw std::runtime_error(message "\n" " \
 ⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝ \n \
 ⠸⡸⠜⠕⠕⠁⢁⢇⢏⢽⢺⣪⡳⡝⣎⣏⢯⢞⡿⣟⣷⣳⢯⡷⣽⢽⢯⣳⣫⠇ \n \
 ⠀⠀⢀⢀⢄⢬⢪⡪⡎⣆⡈⠚⠜⠕⠇⠗⠝⢕⢯⢫⣞⣯⣿⣻⡽⣏⢗⣗⠏⠀\n \
@@ -21,3 +21,11 @@ std::runtime_error(message "\n" " \
 
 #define CHECK_FOR_VK_RESULT(function, message) \
 if (function != VK_SUCCESS) { THROW_RUNTIME_ERROR(message "\n "); }
+
+
+#define HANDLE(type, name) \
+    public: \
+    type& get_name(); \
+    private: \
+    type _name;
+

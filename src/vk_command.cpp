@@ -12,6 +12,29 @@ CommandPool::CommandPool(Device& device) {
     create(device);
 }
 
+CommandPool::CommandPool(const CommandPool& command_pool) {
+    *this = command_pool;
+}
+
+CommandPool::CommandPool(CommandPool&& command_pool) noexcept {
+    *this = std::move(command_pool);
+}
+
+CommandPool& CommandPool::operator=(const CommandPool& command_pool) {
+    _command_pool = command_pool._command_pool;
+    _device = command_pool._device;
+    return *this;
+}
+
+CommandPool& CommandPool::operator=(CommandPool&& command_pool) noexcept {
+    _command_pool = command_pool._command_pool;
+    _device = command_pool._device;
+
+    command_pool._command_pool = nullptr;
+    command_pool._device = nullptr;
+    return *this;
+}
+
 void CommandPool::create(Device& device) {
         VkCommandPoolCreateInfo pool_info{};
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -62,13 +85,14 @@ void CommandBuffer::reset() {
     vkResetCommandBuffer(_command_buffer, 0);
 }
 
-void CommandBuffer::submit(std::vector<Semaphore>* wait, std::vector<Semaphore>* signal, Fence fence) {
+void CommandBuffer::submit(std::vector<Semaphore>* wait, std::vector<Semaphore>* signal, Fence fence, VkPipelineStageFlags* wait_dst_stage) {
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &_command_buffer;
     submit_info.waitSemaphoreCount = wait ? wait->size() : 0;
     submit_info.pWaitSemaphores = wait ? wait->data() : nullptr;
+    submit_info.pWaitDstStageMask = wait_dst_stage;
     submit_info.signalSemaphoreCount = signal ? signal->size() : 0;
     submit_info.pSignalSemaphores = signal ? signal->data() : nullptr;
 

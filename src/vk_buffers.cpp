@@ -16,7 +16,50 @@ Buffer::Buffer(){}
 
 Buffer::Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     create(device, size, usage, properties);
+    _is_copied = false;
 }
+
+Buffer::Buffer(const Buffer& buffer) {
+    *this = buffer;
+}
+
+Buffer::Buffer(Buffer&& buffer) noexcept {
+    *this = std::move(buffer);
+}
+
+Buffer& Buffer::operator=(const Buffer& buffer) {
+    std::cout << "BUFFER COPY\n";
+    _buffer = buffer._buffer;
+    _buffer_memory = buffer._buffer_memory;
+    _buffer_size = buffer._buffer_size;
+
+    memcpy(buffer._buffer_map, _buffer_map, _map_size);
+
+    _map_size = buffer._map_size;
+    _device = buffer._device;
+    _is_copied = true;
+    return *this;
+}
+
+Buffer& Buffer::operator=(Buffer&& buffer) noexcept {
+    std::cout << "BUFFER MOVE\n";
+
+    _buffer = buffer._buffer;
+    _buffer_memory = buffer._buffer_memory;
+    _buffer_size = buffer._buffer_size;
+
+    _buffer_map = buffer._buffer_map;
+    _map_size = buffer._map_size;
+    _device = buffer._device;
+
+    buffer._buffer = nullptr;
+    buffer._buffer_memory = nullptr;
+    buffer._buffer_map = nullptr;
+    buffer._device = nullptr;
+
+    return *this;
+}
+
 void Buffer::create(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -24,27 +67,29 @@ void Buffer::create(Device& device, VkDeviceSize size, VkBufferUsageFlags usage,
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    CHECK_FOR_VK_RESULT(vkCreateBuffer(_device->get_device(), &bufferInfo, nullptr, &_buffer), "")
+    CHECK_FOR_VK_RESULT(vkCreateBuffer(device.get_device(), &bufferInfo, nullptr, &_buffer), "")
 
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(_device->get_device(), _buffer, &memory_requirements);
+    vkGetBufferMemoryRequirements(device.get_device(), _buffer, &memory_requirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memory_requirements.size;
-    allocInfo.memoryTypeIndex = find_memory_type(*_device, memory_requirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = find_memory_type(device, memory_requirements.memoryTypeBits, properties);
     //how 2 be inconsistent: lambdas
     //tiny helpers that are NOT used by other classes.
-    CHECK_FOR_VK_RESULT(vkAllocateMemory(_device->get_device(), &allocInfo, nullptr, &_buffer_memory), "")
+    CHECK_FOR_VK_RESULT(vkAllocateMemory(device.get_device(), &allocInfo, nullptr, &_buffer_memory), "")
 
-    vkBindBufferMemory(_device->get_device(), _buffer, _buffer_memory, 0);
+    vkBindBufferMemory(device.get_device(), _buffer, _buffer_memory, 0);
     _buffer_size = size;
     _device = &device;
 }
 
 void Buffer::map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags) {
+    assert(size <= _buffer_size);
     vkMapMemory(_device->get_device(), _buffer_memory, 0, size, 0, &_buffer_map);
     memcpy(_buffer_map, data, (size_t) size);
+    _map_size = size;
 }
 
 void Buffer::unmap_memory() {
@@ -52,6 +97,7 @@ void Buffer::unmap_memory() {
 }
 
 void Buffer::update_memory_map(void* data, uint64_t size) {
+    assert(size <= _map_size);
     memcpy(_buffer_map, data, (size_t) size);
 }
 
@@ -70,6 +116,7 @@ Buffer HelloTriangle::create_vertex_buffer(Device& device, CommandPool& command_
     return vertex_buffer;
 }
 
+//these things should be in a wrappers file
 Buffer HelloTriangle::create_index_buffer(Device& device, CommandPool& command_pool, const std::vector<uint32_t> indices) {
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
     
@@ -101,7 +148,7 @@ void HelloTriangle::copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_
     vkCmdCopyBuffer(copy_command_buffer.get(), src_buffer.buffer(), dst_buffer.buffer(), 1, &copy_region);
     //vkEndCommandBuffer(copy_command_buffer.get());
     copy_command_buffer.end();
-    copy_command_buffer.submit(nullptr, nullptr, nullptr);
+    copy_command_buffer.submit(nullptr, nullptr, nullptr, nullptr);
 }
 
 uint32_t HelloTriangle::find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -115,22 +162,17 @@ uint32_t HelloTriangle::find_memory_type(Device& device, uint32_t typeFilter, Vk
     }
 }
 
-//Move to main
-/*
-void buffer_creation::update_uniform_buffer(uint32_t current_frame, VkExtent2D extent) {
-    static auto start_time = std::chrono::high_resolution_clock::now();
-    auto current_time = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
-    HelloTriangle::uniform_Buffer ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), extent.width / (float) extent.height, 0.0f, 10.0f);
-    ubo.proj[1][1] *= -1;
-    memcpy(uniformBufferMaps[current_frame], &ubo, sizeof(ubo));
-} */
 Buffer::~Buffer() {
-    vkDestroyBuffer(_device->get_device(), _buffer, nullptr);
-    vkFreeMemory(_device->get_device(), _buffer_memory, nullptr);
+    std::cout << "BUFFER OOF\n";
+    //_is_copied = false;
+    //if (_is_copied) {
+    //    _buffer = nullptr;
+    //    _buffer_memory = nullptr;
+    //} else {
+        // at exit for some reason when destructor is called without this is copied if block it segfaults
+        vkDestroyBuffer(_device->get_device(), _buffer, nullptr);
+        vkFreeMemory(_device->get_device(), _buffer_memory, nullptr);
+    //}
 }
 

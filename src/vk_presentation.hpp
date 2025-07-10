@@ -22,6 +22,7 @@ namespace HelloTriangle {
     VkFormat get_format() {return _format;}
     uint32_t get_image_width() { return _extent.width; }
     uint32_t get_image_height() { return _extent.height; }
+    uint32_t get_image_index() { return _image_index; }
 
 private:
     VkSwapchainKHR _swapchain;

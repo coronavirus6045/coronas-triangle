@@ -1,6 +1,5 @@
 #include "vk_device.hpp"
 #include "vk_debugmsg.hpp"
-#include "vk_presentation.hpp"
 #include <vulkan/vulkan_core.h>
 
 using HelloTriangle::Device;
@@ -100,18 +99,23 @@ void Device::create(Instance& instance, uint32_t gpu_index, VkSurfaceKHR surface
     VkPhysicalDeviceFeatures2 required_device_features{};
 
     //This is correct
-    _device_features.pNext = &_device_features_11;
-    _device_features_11.pNext = &_device_features_12;
+    _device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    //_device_features.pNext = &_device_features_11;
+    _device_features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
+    //_device_features_11.pNext = &_device_features_12;
+    _device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
 
-    vkGetPhysicalDeviceFeatures2(_physical_device, &required_device_features);
+    vkGetPhysicalDeviceFeatures2(_physical_device, &_device_features);
+
+    required_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    required_device_features.pNext = &required_device_features_11;
 
     required_device_features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES;
     required_device_features_11.pNext = &required_device_features_12;
 
     required_device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES;
 
-    required_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    required_device_features.pNext = &required_device_features_11;
+
 
 //we aint doing all that so we did a macro yay (for 1.0 - 1.2)
 #define DEVICE_FEATURE_10_ENABLE_IF(feature) \
@@ -133,8 +137,8 @@ void Device::create(Instance& instance, uint32_t gpu_index, VkSurfaceKHR surface
 
     VkDeviceCreateInfo device_info{};
     device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_info.pNext = &required_device_features;
-    //device_info.pNext = &_device_features;
+    //device_info.pNext = &required_device_features;
+    device_info.pNext = &_device_features;
     device_info.queueCreateInfoCount = static_cast<uint32_t>(queue_infos.size());
     device_info.pQueueCreateInfos = queue_infos.data();
     device_info.pEnabledFeatures = nullptr;
@@ -154,5 +158,6 @@ void Device::create(Instance& instance, uint32_t gpu_index, VkSurfaceKHR surface
 }
 
 Device::~Device() {
+    std::cout << "Goodbye....\n";
     vkDestroyDevice(_device, nullptr);
 }

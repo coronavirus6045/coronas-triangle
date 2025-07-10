@@ -81,7 +81,8 @@ void Swapchain::create(Device& device, VkSurfaceKHR& surface, VkFormat format, V
         swapchain_info.imageArrayLayers = 1;
         swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         swapchain_info.queueFamilyIndexCount = 2;
-        swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        //swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         swapchain_info.pQueueFamilyIndices = indices;
 
         swapchain_info.preTransform = capabilities.currentTransform;
@@ -120,6 +121,8 @@ void Swapchain::create(Device& device, VkSurfaceKHR& surface, VkFormat format, V
 
         _format = format;
         _mode = mode;
+
+        _device = &device;
 }
 
 VkResult Swapchain::acquire_next_image(Semaphore semaphore, Fence fence) {
@@ -140,6 +143,7 @@ VkResult Swapchain::present(std::vector<Semaphore> signal_semaphores) {
 }
 
 Swapchain::~Swapchain() {
+    std::cout << "swapchin oof\n";
     for (uint32_t i = 0; i < _swapchain_views.size(); i++) {
         vkDestroyImageView(_device->get_device(), _swapchain_views[i], nullptr);
     }

@@ -10,10 +10,15 @@
 #include "vk_shader.hpp"
 #include "vk_descriptor.hpp"
 #include "scene/scene_obj.hpp"
+
+
 //We include vk_image later
 
 //this is the master renderer class that will do all the work
 
+//NEED TO BRING BACK VERTEX ATTRIBUTE AND5 BINDING DESC AND ALSO DO RULE OF 3
+
+#define MAX_FRAMES_IN_FLIGHT 2
 
 class Renderer {
     public:
@@ -24,6 +29,7 @@ class Renderer {
         void draw();
         void swapchain_resize();
         void uniform_update(VkExtent2D extent);
+        void cleanup();
         VkExtent2D window_size_to_extent();
     private:
         bool feel_like_it_wants_to_exit = false;
@@ -48,18 +54,19 @@ class Renderer {
         HelloTriangle::SyncObjectMaker* _sync_object_maker;
 
         // Sync objects
-        std::array<HelloTriangle::Fence, MAX_FRAMES_IN_FLIGHT> _main_fence;
-        std::array<HelloTriangle::Semaphore, MAX_FRAMES_IN_FLIGHT> _image_semaphore;
-        std::array<HelloTriangle::Semaphore, MAX_FRAMES_IN_FLIGHT> _render_semaphore;
+        std::vector<HelloTriangle::Fence> _main_fence;
+        std::vector<HelloTriangle::Semaphore> _image_semaphore;
+        std::vector<HelloTriangle::Semaphore> _render_semaphore;
 
         // Main command_pool
         HelloTriangle::CommandPool* _command_pool;
 
         // Descriptor layout, pool, sets
-        std::vector<HelloTriangle::DescriptorLayout> _descriptor_layout;
+        //std::vector<HelloTriangle::DescriptorLayout> _descriptor_layout;
+        HelloTriangle::DescriptorLayout* _descriptor_layout;
         HelloTriangle::DescriptorPool* _descriptor_pool;
         HelloTriangle::PipelineLayout* _pipeline_layout;
-        std::array<HelloTriangle::DescriptorSet, MAX_FRAMES_IN_FLIGHT> _descriptor_set;
+        std::vector<HelloTriangle::DescriptorSet> _descriptor_set;
 
         // Main render pass
         HelloTriangle::RenderPass* _main_pass;
@@ -68,7 +75,7 @@ class Renderer {
         std::vector<HelloTriangle::Shader> _shaders;
 
         // Framebuffer
-        std::vector<HelloTriangle::Framebuffer> _main_framebuffer;
+        HelloTriangle::Framebuffer* _main_framebuffer;
 
         // Pipelines
         std::vector<HelloTriangle::PipelineHandle> _pipelines;

@@ -57,19 +57,19 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.flags = 0;
 
-    CHECK_FOR_VK_RESULT(vkCreateImage(_device.get_device(), &image_info, nullptr, &_image), "")
+    CHECK_FOR_VK_RESULT(vkCreateImage(device.get_device(), &image_info, nullptr, &_image), "")
 
     VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(_device.get_device(), _image, &memory_requirements);
+    vkGetImageMemoryRequirements(_device->get_device(), _image, &memory_requirements);
 
     VkMemoryAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     alloc_info.allocationSize = memory_requirements.size;
-    alloc_info.memoryTypeIndex = find_memory_type(_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    alloc_info.memoryTypeIndex = HelloTriangle::find_memory_type(device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    CHECK_FOR_VK_RESULT(vkAllocateMemory(_device.get_device(), &alloc_info, nullptr, &_image_memory), "")
+    CHECK_FOR_VK_RESULT(vkAllocateMemory(device.get_device(), &alloc_info, nullptr, &_image_memory), "")
 
-    vkBindImageMemory(_device.get_device(), _image, _image_memory, 0);
+    vkBindImageMemory(device.get_device(), _image, _image_memory, 0);
 
     VkImageViewCreateInfo view_info{};
     view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -90,13 +90,11 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    if (vkCreateImageView(_device.get_device(), &view_info, nullptr, &_image_view) != VK_SUCCESS) {
-
-    }
+    CHECK_FOR_VK_RESULT(vkCreateImageView(device.get_device(), &view_info, nullptr, &_image_view), "")
     //sampler
     _image_width = width;
     _image_height = height;
-    _device = device;
+    _device = &device;
 }
 //pisney dixar
 void transition_image_layout(Device& device, CommandBuffer& command_buffer, Image image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
@@ -141,10 +139,11 @@ void transition_image_layout(Device& device, CommandBuffer& command_buffer, Imag
                          );
 }
 
-void Image::copy_buffer_to_image(CommandBuffer& command_buffer, void* data, uint32_t width, uint32_t height) {
+void Image::copy_buffer_to_image(CommandPool& command_pool, Buffer& buffer, uint32_t width, uint32_t height) {
     VkDeviceSize size = width * height * 4;
-    Buffer buffer(_device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
+    //Buffer buffer(_device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    CommandBuffer copy_buffer(*_device, command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    copy_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
@@ -158,5 +157,8 @@ void Image::copy_buffer_to_image(CommandBuffer& command_buffer, void* data, uint
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
 
-    vkCmdCopyBufferToImage(command_buffer.get(), buffer.buffer(), _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBufferToImage(copy_buffer.get(), buffer.buffer(), _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    copy_buffer.end();
+    // lets overload submit()
+    copy_buffer.submit(nullptr, nullptr, nullptr, nullptr);
 }

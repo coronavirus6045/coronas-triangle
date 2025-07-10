@@ -20,6 +20,7 @@ void Renderer::boot() {
         }
 
         if (feel_like_it_wants_to_stop_rendering) {
+            std::cout << "SLEEP\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -27,7 +28,7 @@ void Renderer::boot() {
         draw();
     }
 
-
+    cleanup();
 }
 
 void Renderer::initialize() {
@@ -81,12 +82,10 @@ void Renderer::initialize() {
     _pipelines.push_back(pipeline_main);
     
     // Main shaders (should be in a separate functi)
-    
+
     HelloTriangle::Shader main_vert(*_device, "main_vert.spv");
     HelloTriangle::Shader main_frag(*_device, "main_frag.spv");
 
-    _shaders.push_back(main_vert);
-    _shaders.push_back(main_frag);
 
     std::vector<HelloTriangle::RenderAttachmentReference> attachment_refs;
 
@@ -111,6 +110,8 @@ void Renderer::initialize() {
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     color_attachment.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.stencil_load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment.stencil_store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     color_attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     color_attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
@@ -118,7 +119,7 @@ void Renderer::initialize() {
 
     std::vector<HelloTriangle::SubpassDependency> deps;
 
-    HelloTriangle::SubpassDependency dependency;
+    HelloTriangle::SubpassDependency dependency{};
     dependency.src_subpass = VK_SUBPASS_EXTERNAL;
     dependency.dst_subpass = 0;
     dependency.src_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -140,11 +141,14 @@ void Renderer::initialize() {
     };
 
     // is this stupid?
+    std::cout << "VERTEX BUFFER\n";
+
     //HelloTriangle::Buffer vbuf = HelloTriangle::create_vertex_buffer(*_device, _command_pool->get(), _vertices);
     _vertex_buffer = new HelloTriangle::Buffer(HelloTriangle::create_vertex_buffer(*_device, *_command_pool, _vertices));
 
 
     // Index buffer
+    std::cout << "VERTEX BUFFER\n";
 
     _indices = {
         0, 1, 2, 2, 3, 0
@@ -154,47 +158,89 @@ void Renderer::initialize() {
     _index_buffer = new HelloTriangle::Buffer(HelloTriangle::create_index_buffer(*_device, *_command_pool, _indices));
 
     // Uniform buffer
+    std::cout << "UNIFORM BUFFER\n";
+
     _mvp_matrix = {};
 
     _uniform_buffer.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         //HelloTriangle::Buffer ubuf = HelloTriangle::create_uniform_buffer(*_device, &_mvp_matrix, sizeof(MVPMatrix));
-        _uniform_buffer[i] = HelloTriangle::create_uniform_buffer(*_device, &_mvp_matrix, sizeof(MVPMatrix));
+        //_uniform_buffer[i] = HelloTriangle::create_uniform_buffer(*_device, &_mvp_matrix, sizeof(MVPMatrix));
+        //_uniform_buffer[i] = ubuf;
+        _uniform_buffer[i].create(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        _uniform_buffer[i].map_memory(&_mvp_matrix, sizeof(MVPMatrix), 0, 0);
     }
-
     // Fix constructor
-    HelloTriangle::DescriptorLayout main_desc_layout(*_device);
-    main_desc_layout.add_binding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
-    main_desc_layout.create(*_device);
+    //_descriptor_layout.resize(MAX_FRAMES_IN_FLIGHT);
 
-    _descriptor_layout.push_back(main_desc_layout);
+    /*
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        //HelloTriangle::DescriptorLayout layout(*_device);
+        _descriptor_layout[i].add_binding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
+        _descriptor_layout[i].create(*_device);
+        //rule of 3 violations and realization desctructor is called after pushback
+        //_descriptor_layout.push_back(layout);
+        //_descriptor_layout.emplace_back(layout);
+    }
+*/
     //
+
+    _descriptor_layout = new HelloTriangle::DescriptorLayout();
+    _descriptor_layout->add_binding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    _descriptor_layout->create(*_device);
 
     _descriptor_pool = new HelloTriangle::DescriptorPool(*_device, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
+    _descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
+    std::cout << "DESCRIPTOR SET\n";
+
+    //std::vector<HelloTriangle::DescriptorLayout> desc_layouts(MAX_FRAMES_IN_FLIGHT, *_descriptor_layout);
+
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        _descriptor_set[i].allocate(*_device, *_descriptor_pool, _descriptor_layout[i]);
+        //HelloTriangle::DescriptorSet set;
+        _descriptor_set[i].allocate(*_device, *_descriptor_pool, *_descriptor_layout);
         _descriptor_set[i].write_descriptor(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &_uniform_buffer[i], 0, sizeof(MVPMatrix), nullptr);
+        //_descriptor_set.push_back(set);
     }
 
     //Add constructor with no args
-    _pipeline_layout = new HelloTriangle::PipelineLayout(*_device, _descriptor_layout, 0);
+    _pipeline_layout = new HelloTriangle::PipelineLayout(*_device, *_descriptor_layout, 0);
     
-    _pipeline_maker->set_shader(_shaders[0], VK_SHADER_STAGE_VERTEX_BIT, "main");
-    _pipeline_maker->set_shader(_shaders[1], VK_SHADER_STAGE_FRAGMENT_BIT, "main");
+    _pipeline_maker->set_shader(main_vert, VK_SHADER_STAGE_VERTEX_BIT, "main");
+    _pipeline_maker->set_shader(main_frag, VK_SHADER_STAGE_FRAGMENT_BIT, "main");
     
     //Color blend attachment
     
     std::vector<HelloTriangle::ColorBlendAttachment> blend_attachments;
 
-    HelloTriangle::ColorBlendAttachment blend_attachment;
+    HelloTriangle::ColorBlendAttachment blend_attachment{};
     blend_attachment.enable_blend = false;
     blend_attachment.color_write = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     blend_attachments.push_back(blend_attachment);
 
-    HelloTriangle::GraphicsPipelineInfo pipeline_main_info;
+    HelloTriangle::VertexFormat vert_format{};
+    vert_format.binding = 0;
+    vert_format.input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vert_format.stride = sizeof(HelloTriangle::vertex);
+
+    std::vector<HelloTriangle::VertexAttribute> vert_attributes(2);
+
+    vert_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vert_attributes[0].location = 0;
+    vert_attributes[0].offset = offsetof(HelloTriangle::vertex, pos);
+
+    vert_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vert_attributes[1].location = 1;
+    vert_attributes[1].offset = offsetof(HelloTriangle::vertex, color);
+
+    vert_format.attributes = vert_attributes;
+
+    std::vector<HelloTriangle::VertexFormat> vert_formats;
+    vert_formats.push_back(vert_format);
+
+    HelloTriangle::GraphicsPipelineInfo pipeline_main_info{};
     pipeline_main_info.viewport_count = 1;
     pipeline_main_info.scissor_count = 1;
     pipeline_main_info.enable_primitive_restart = false;
@@ -204,26 +250,37 @@ void Renderer::initialize() {
     pipeline_main_info.rasterizer_front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     pipeline_main_info.rasterizer_cull_mode = VK_CULL_MODE_BACK_BIT;
     pipeline_main_info.subpass_index = 0;
+    pipeline_main_info.enable_multisampling = false;
+    pipeline_main_info.enable_rasterizer_depth_clamp = false;
     pipeline_main_info.vertex_input_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     pipeline_main_info.attachments = blend_attachments;
+    pipeline_main_info.multisampling_sample_count = VK_SAMPLE_COUNT_1_BIT;
     pipeline_main_info.enable_color_blending_logic_op = false;
+    pipeline_main_info.vertex_formats = vert_formats;
 
 
-    _pipeline_maker->create_graphics_pipeline(pipeline_main_info, *_pipeline_layout, *_main_pass, _descriptor_layout);
+    _pipelines[0] = _pipeline_maker->create_graphics_pipeline(pipeline_main_info, *_pipeline_layout, *_main_pass);
 
-    _main_framebuffer.resize(MAX_FRAMES_IN_FLIGHT);
+    //_main_framebuffer.resize(_swapchain_size);
 
-
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        _main_framebuffer[i].create(*_device, *_main_pass, *_swapchain);
-    }
+    //for (uint32_t i = 0; i < _swapchain_size; i++) {
+    _main_framebuffer = new HelloTriangle::Framebuffer();
+    _main_framebuffer->create(*_device, *_main_pass, *_swapchain);
+    //}
 
     // Synchronization
+    _sync_object_maker = new HelloTriangle::SyncObjectMaker(*_device);
+
+    _render_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
+    _image_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
+    _main_fence.resize(MAX_FRAMES_IN_FLIGHT);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         _render_semaphore[i] = _sync_object_maker->create_semaphore();
         _image_semaphore[i] = _sync_object_maker->create_semaphore();
         _main_fence[i] = _sync_object_maker->create_fence();
     }
+
+    //_uniform_buffer.clear();
 
 }
 
@@ -232,6 +289,7 @@ void Renderer::draw() {
 
     VkResult result = _swapchain->acquire_next_image(_image_semaphore[_frame_index], nullptr);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        std::cout << "PP\n";
         swapchain_resize();
     }
     // swapchain recreation
@@ -239,13 +297,14 @@ void Renderer::draw() {
 
     _main_command_buffer[_frame_index].begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-
+    vkResetFences(_device->get_device(), 1, &_main_fence[_frame_index]);
     VkExtent2D extent = {_swapchain->get_image_width(), _swapchain->get_image_height()};
 
     VkRenderPassBeginInfo pass_info{};
     pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     pass_info.renderPass = _main_pass->get();
-    pass_info.framebuffer = _main_framebuffer[_frame_index].get();
+    //culprit
+    pass_info.framebuffer = _main_framebuffer->get(_swapchain->get_image_index());
     pass_info.renderArea.offset = {0, 0};
     pass_info.renderArea.extent = extent;
 
@@ -270,9 +329,14 @@ void Renderer::draw() {
 
     vkCmdSetScissor(_main_command_buffer[_frame_index].get(), 0, 1, &scissor);
 
-    vkCmdBindVertexBuffers(_main_command_buffer[_frame_index].get(), 0, 1, &_vertex_buffer->buffer(), 0);
+    VkDeviceSize offsets[] = {0};
+
+    vkCmdBindVertexBuffers(_main_command_buffer[_frame_index].get(), 0, 1, &_vertex_buffer->buffer(), offsets);
+    vkCmdBindIndexBuffer(_main_command_buffer[_frame_index].get(), _index_buffer->buffer(), 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdBindPipeline(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline) _pipelines[0]);
+
+    vkCmdBindDescriptorSets(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline_layout->get(), 0, 1, &_descriptor_set[_frame_index].get(), 0, nullptr);
 
     vkCmdDrawIndexed(_main_command_buffer[_frame_index].get(), _indices.size(), 1, 0, 0, 0);
 
@@ -285,7 +349,9 @@ void Renderer::draw() {
     std::vector<HelloTriangle::Semaphore> wait = {_image_semaphore[_frame_index]};
     std::vector<HelloTriangle::Semaphore> signal = {_render_semaphore[_frame_index]};
 
-    _main_command_buffer[_frame_index].submit(&wait, &signal, _main_fence[_frame_index]);
+    VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    _main_command_buffer[_frame_index].submit(&wait, &signal, _main_fence[_frame_index], &wait_dst_stage);
 
 
     result = _swapchain->present(signal);
@@ -319,4 +385,39 @@ VkExtent2D Renderer::window_size_to_extent() {
     SDL_GetWindowSize(_window, &width, &height);
     VkExtent2D extent = {(uint32_t) width, (uint32_t) height};
     return extent;
+}
+
+void Renderer::cleanup() {
+    //this is when you will use smart pointers
+
+    delete _swapchain;
+
+    //lets go back to turning pipeline as a single class instead of handle and maker
+    _pipeline_maker->delete_pipeline(_pipelines[0]);
+
+    //delete _pipeline_maker;
+
+    delete _command_pool;
+    _main_command_buffer.clear();
+    delete _descriptor_layout;
+    delete _descriptor_pool;
+    _descriptor_set.clear();
+
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        _sync_object_maker->delete_sync_object(_main_fence[i], nullptr);
+        _sync_object_maker->delete_sync_object(nullptr, _image_semaphore[i]);
+        _sync_object_maker->delete_sync_object(nullptr, _render_semaphore[i]);
+    }
+    //delete _sync_object_maker;
+
+    delete _main_pass;
+    delete _main_framebuffer;
+
+    delete _vertex_buffer;
+    delete _index_buffer;
+
+    _uniform_buffer.clear();
+
+    delete _device;
+    delete _instance;
 }
