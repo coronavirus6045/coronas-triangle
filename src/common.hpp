@@ -6,13 +6,15 @@
 #include <fstream>
 #include <ios>
 
-#include "third_party/stbi_implementation.hpp"
-#include "third_party/volk_implementation.hpp"
+#include "third_party/stb/stb_image.h"
+#define VK_NO_PROTOTYPES
+#include "third_party/volk/volk.h"
+#include "third_party/VulkanMemoryAllocator/include/vk_mem_alloc.h"
+
 
 #include <fmt/core.h>
 
 #include <SDL2/SDL.h>
-#define VK_NO_PROTOTYPES
 #include <SDL2/SDL_vulkan.h>
 //#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>

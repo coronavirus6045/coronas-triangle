@@ -155,9 +155,27 @@ void Device::create(Instance& instance, uint32_t gpu_index, VkSurfaceKHR surface
     vkGetDeviceQueue(_device, _graphics_family.value(), 0, &_graphics_queue);
     //vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &presentQueue);
     volkLoadDevice(_device);
+
+    //Configure VMA allocator
+
+    VmaAllocatorCreateInfo allocator_info{};
+    allocator_info.instance = instance.get();
+    allocator_info.physicalDevice = _physical_device;
+    allocator_info.device = _device;
+    allocator_info.vulkanApiVersion = VK_API_VERSION_1_2;
+    allocator_info.flags = 0;
+
+    VmaVulkanFunctions vma_functions{};
+    vma_functions.vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr) vkGetInstanceProcAddr;
+    vma_functions.vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr) vkGetDeviceProcAddr;
+
+    allocator_info.pVulkanFunctions = &vma_functions;
+
+    vmaCreateAllocator(&allocator_info, &_allocator);
 }
 
 Device::~Device() {
     std::cout << "Goodbye....\n";
     vkDestroyDevice(_device, nullptr);
+    vmaDestroyAllocator(_allocator);
 }

@@ -17,6 +17,7 @@ class Device {
         VkPhysicalDevice& get_physical_device() { return _physical_device; }
         VkDevice& get_device() { return _device; }
         VkQueue& get_graphics_queue() { return _graphics_queue; }
+        VmaAllocator& get_allocator() { return _allocator; }
         const uint32_t get_queue_family() {
             return _graphics_family.has_value() ? _graphics_family.value() : 0;
         }
@@ -24,6 +25,7 @@ class Device {
     private:
         VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
         VkDevice _device;
+        VmaAllocator _allocator;
         VkPhysicalDeviceProperties _device_properties;
         VkPhysicalDeviceFeatures2 _device_features;
         VkPhysicalDeviceVulkan11Features _device_features_11;

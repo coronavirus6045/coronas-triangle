@@ -14,26 +14,27 @@
 
 namespace HelloTriangle {
 // We'll use VMA later
+//We're using it now.
 class Buffer {
     public:
         Buffer();
-        Buffer(const Buffer& buffer);
+        Buffer(const Buffer& buffer) = delete;
         Buffer(Buffer&& buffer) noexcept;
-        Buffer& operator=(const Buffer& buffer);
-        Buffer& operator=(Buffer&& buffer) noexcept;
+        Buffer& operator=(const Buffer& buffer) = delete;
+        Buffer& operator=(Buffer&& buffer) noexcept = delete;
         Buffer(Device& device,
                VkDeviceSize size,
                VkBufferUsageFlags usage,
-               VkMemoryPropertyFlags properties);
+               VmaMemoryUsage memory_usage);
         ~Buffer();
 
         void create(Device& device,
                     VkDeviceSize size,
                     VkBufferUsageFlags usage,
-                    VkMemoryPropertyFlags properties);
+                    VmaMemoryUsage memory_usage);
 
         const VkBuffer& buffer() const { return _buffer; }
-        const VkDeviceMemory& buffer_memory() const { return _buffer_memory; }
+        //const VkDeviceMemory& buffer_memory() const { return _buffer_memory; }
         const VkDeviceSize& buffer_size() const { return _buffer_size; }
         void map_memory(void* data, uint64_t size, uint64_t offset, uint32_t flags = 0);
         void unmap_memory();
@@ -42,9 +43,12 @@ class Buffer {
     private:
         void* _buffer_map;
         bool _is_copied;
+        bool _is_oofed;
+        bool _is_mapped;
         uint64_t _map_size;
         VkBuffer _buffer;
-        VkDeviceMemory _buffer_memory;
+        VmaAllocation _allocation;
+        //VkDeviceMemory _buffer_memory;
         VkDeviceSize _buffer_size;
 
         Device* _device;
@@ -62,5 +66,5 @@ Buffer create_uniform_buffer(Device& device, void* data, uint64_t size);
 
 void copy_buffer(Device& device, Buffer& src_buffer, Buffer& dst_buffer, CommandPool& command_pool);
 
-uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+//uint32_t find_memory_type(Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 } // namespace HelloTriangle

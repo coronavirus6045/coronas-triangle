@@ -162,14 +162,15 @@ void Renderer::initialize() {
 
     _mvp_matrix = {};
 
-    _uniform_buffer.resize(MAX_FRAMES_IN_FLIGHT);
+    //_uniform_buffer.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        //HelloTriangle::Buffer ubuf = HelloTriangle::create_uniform_buffer(*_device, &_mvp_matrix, sizeof(MVPMatrix));
-        //_uniform_buffer[i] = HelloTriangle::create_uniform_buffer(*_device, &_mvp_matrix, sizeof(MVPMatrix));
-        //_uniform_buffer[i] = ubuf;
-        _uniform_buffer[i].create(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        _uniform_buffer[i].map_memory(&_mvp_matrix, sizeof(MVPMatrix), 0, 0);
+        HelloTriangle::Buffer ubuf(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+        _uniform_buffer.push_back(std::move(ubuf));
+
+        // COMMENT 168 AND 169 AND UNCOMMENT BELOW AND LINE 165 TO NOT TRIGGER THE COPY CONSTRUCTOR OF VECTOR
+        //_uniform_buffer[i].create(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+        //_uniform_buffer[i].map_memory(&_mvp_matrix, sizeof(MVPMatrix), 0, 0);
     }
     // Fix constructor
     //_descriptor_layout.resize(MAX_FRAMES_IN_FLIGHT);
@@ -271,17 +272,22 @@ void Renderer::initialize() {
     // Synchronization
     _sync_object_maker = new HelloTriangle::SyncObjectMaker(*_device);
 
-    _render_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
+    _swapchain_images = _swapchain->get_images();
+
+    _render_semaphore.resize(_swapchain_images.size());
     _image_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
     _main_fence.resize(MAX_FRAMES_IN_FLIGHT);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        _render_semaphore[i] = _sync_object_maker->create_semaphore();
+
         _image_semaphore[i] = _sync_object_maker->create_semaphore();
         _main_fence[i] = _sync_object_maker->create_fence();
     }
+    for (uint32_t i = 0; i < _swapchain_images.size(); i++) {
+
+        _render_semaphore[i] = _sync_object_maker->create_semaphore();
 
     //_uniform_buffer.clear();
-
+    }
 }
 
 void Renderer::draw() {
@@ -292,6 +298,9 @@ void Renderer::draw() {
         std::cout << "PP\n";
         swapchain_resize();
     }
+
+    uint32_t image_index = _swapchain->get_image_index();
+
     // swapchain recreation
     _main_command_buffer[_frame_index].reset();
 
@@ -304,7 +313,7 @@ void Renderer::draw() {
     pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     pass_info.renderPass = _main_pass->get();
     //culprit
-    pass_info.framebuffer = _main_framebuffer->get(_swapchain->get_image_index());
+    pass_info.framebuffer = _main_framebuffer->get(image_index);
     pass_info.renderArea.offset = {0, 0};
     pass_info.renderArea.extent = extent;
 
@@ -347,7 +356,7 @@ void Renderer::draw() {
     uniform_update(extent);
 
     std::vector<HelloTriangle::Semaphore> wait = {_image_semaphore[_frame_index]};
-    std::vector<HelloTriangle::Semaphore> signal = {_render_semaphore[_frame_index]};
+    std::vector<HelloTriangle::Semaphore> signal = {_render_semaphore[image_index]};
 
     VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
