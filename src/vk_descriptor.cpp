@@ -28,7 +28,7 @@ DescriptorLayout::DescriptorLayout(DescriptorLayout&& layout) noexcept {
 DescriptorLayout& DescriptorLayout::operator=(const DescriptorLayout& layout) {
     std::cout << "dl copy\n";
     _descriptor_layout = layout._descriptor_layout;
-    _bindings = layout._bindings;
+    //_bindings = layout._bindings;
     _device = layout._device;
     return *this;
 }
@@ -36,7 +36,7 @@ DescriptorLayout& DescriptorLayout::operator=(const DescriptorLayout& layout) {
 DescriptorLayout& DescriptorLayout::operator=(DescriptorLayout&& layout) noexcept {
     std::cout << "dl move\n";
     _descriptor_layout = layout._descriptor_layout;
-    _bindings = layout._bindings;
+    //_bindings = layout._bindings;
     _device = layout._device;
 
     layout._descriptor_layout = nullptr;
@@ -45,16 +45,30 @@ DescriptorLayout& DescriptorLayout::operator=(DescriptorLayout&& layout) noexcep
 }
 
 
-void DescriptorLayout::create(Device& device) {
+void DescriptorLayout::create(Device& device, std::vector<DescriptorBinding> bindings) {
     VkDescriptorSetLayoutCreateInfo layout_info{};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    std::vector<VkDescriptorSetLayoutBinding> _bindings;
+
+    _bindings.resize(bindings.size());
+
+    for (uint32_t i = 0; i < bindings.size(); i++) {
+        _bindings[i].binding = bindings[i].binding;
+        _bindings[i].descriptorType = bindings[i].descriptor_type;
+        _bindings[i].descriptorCount = bindings[i].descriptor_count;
+        _bindings[i].stageFlags = bindings[i].stage_flags;
+        _bindings[i].pImmutableSamplers = nullptr;
+    }
+
     layout_info.bindingCount = (uint32_t) _bindings.size();
     layout_info.pBindings = _bindings.data();
+
 
     CHECK_FOR_VK_RESULT(vkCreateDescriptorSetLayout(device.get_device(), &layout_info, nullptr, &_descriptor_layout), "")
     _device = &device;
 }
 
+/*
 void DescriptorLayout::add_binding(uint32_t binding, uint32_t descriptor_count, VkDescriptorType type, VkShaderStageFlags stage_flags) {
     VkDescriptorSetLayoutBinding layout_binding{};
     layout_binding.binding = binding;
@@ -65,14 +79,14 @@ void DescriptorLayout::add_binding(uint32_t binding, uint32_t descriptor_count, 
 
     _bindings.push_back(layout_binding);
 }
-
+*/
 DescriptorLayout::~DescriptorLayout() {
     std::cout << "WTF\n";
     vkDestroyDescriptorSetLayout(_device->get_device(), _descriptor_layout, nullptr);
 }
 
-DescriptorPool::DescriptorPool(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type) {
-    create(device, max_sets, descriptor_type);
+DescriptorPool::DescriptorPool(Device& device, uint32_t max_sets, std::vector<DescriptorBinding> bindings) {
+    create(device, max_sets, bindings);
 }
 
 DescriptorPool::DescriptorPool(const DescriptorPool& pool) {
@@ -98,15 +112,21 @@ DescriptorPool& DescriptorPool::operator=(DescriptorPool&& layout) noexcept {
     return *this;
 }
 
-void DescriptorPool::create(Device& device, uint32_t max_sets, VkDescriptorType descriptor_type) {
-    VkDescriptorPoolSize pool_size{};
+void DescriptorPool::create(Device& device, uint32_t max_sets, std::vector<DescriptorBinding> bindings) {
+   // VkDescriptorPoolSize pool_size{};
     // need to fix this
-    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.resize(bindings.size());
+    for (uint32_t i = 0; i < bindings.size(); i++) {
+        sizes[i].descriptorCount = (bindings[i].descriptor_count * max_sets);
+        sizes[i].type = bindings[i].descriptor_type;
+    }
+    //pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     VkDescriptorPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.poolSizeCount = 1;
-    pool_info.pPoolSizes = &pool_size;
+    pool_info.poolSizeCount = sizes.size();
+    pool_info.pPoolSizes = sizes.data();
     pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     CHECK_FOR_VK_RESULT(vkCreateDescriptorPool(device.get_device(), &pool_info, nullptr, &_descriptor_pool), "")
@@ -135,16 +155,16 @@ void DescriptorSet::allocate(Device& device, DescriptorPool& pool, DescriptorLay
 
 
 // Struct time!
-void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descriptor_type, Buffer* buffer, uint32_t offset, uint64_t range, Image* image){
+void DescriptorSet::write_descriptor(DescriptorBinding binding, Buffer* buffer, uint32_t offset, uint64_t range, Image* image){
     //for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 
     VkWriteDescriptorSet descriptor_write{};
     descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_write.dstSet = _descriptor_set;
-    descriptor_write.dstBinding = binding;
+    descriptor_write.dstBinding = binding.binding;
     descriptor_write.dstArrayElement = 0;
 
-    descriptor_write.descriptorType = descriptor_type;
+    descriptor_write.descriptorType = binding.descriptor_type;
     descriptor_write.descriptorCount = 1;
     //descriptor_write.pTexelBufferView = nullptr;
 
@@ -160,6 +180,7 @@ void DescriptorSet::write_descriptor(uint32_t binding, VkDescriptorType descript
         VkDescriptorImageInfo image_info{};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         image_info.imageView = image->get_image_view();
+        image_info.sampler = image->get_sampler();
 
         descriptor_write.pImageInfo = &image_info;
     } else {

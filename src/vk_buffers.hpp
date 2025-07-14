@@ -18,10 +18,10 @@ namespace HelloTriangle {
 class Buffer {
     public:
         Buffer();
-        Buffer(const Buffer& buffer) = delete;
+        Buffer(const Buffer& buffer);
         Buffer(Buffer&& buffer) noexcept;
-        Buffer& operator=(const Buffer& buffer) = delete;
-        Buffer& operator=(Buffer&& buffer) noexcept = delete;
+        Buffer& operator=(const Buffer& buffer);
+        Buffer& operator=(Buffer&& buffer) noexcept;
         Buffer(Device& device,
                VkDeviceSize size,
                VkBufferUsageFlags usage,

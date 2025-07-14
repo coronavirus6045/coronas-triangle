@@ -7,6 +7,7 @@
 #include "vk_command.hpp"
 #include "vk_instance.hpp"
 #include "vk_buffers.hpp"
+#include "vk_image.hpp"
 #include "vk_shader.hpp"
 #include "vk_descriptor.hpp"
 #include "scene/scene_obj.hpp"
@@ -29,6 +30,7 @@ class Renderer {
         void draw();
         void swapchain_resize();
         void uniform_update(VkExtent2D extent);
+        HelloTriangle::Image load_image_from_file(std::string path);
         void cleanup();
         VkExtent2D window_size_to_extent();
     private:
@@ -86,6 +88,9 @@ class Renderer {
         HelloTriangle::Buffer* _vertex_buffer;
         HelloTriangle::Buffer* _index_buffer;
         std::vector<HelloTriangle::Buffer> _uniform_buffer;
+
+        // The Images
+        HelloTriangle::Image* _picture;
 
         // MVP matrix
         struct MVPMatrix {

@@ -5,14 +5,14 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
-using namespace HelloTriangle;
-using HelloTriangle::Image;
 using HelloTriangle::Buffer;
-using HelloTriangle::find_memory_type;
+using HelloTriangle::Image;
+//using HelloTriangle::find_memory_type;
 
 //should i do it
 //This is a wrapper for crating native API image
 //This may be placed on renderer backend
+/*
 Image HelloTriangle::load_image_from_file(Device& device, std::string& path) {
     int32_t image_width = 0;
     int32_t image_height = 0;
@@ -40,7 +40,56 @@ Image HelloTriangle::load_image_from_file(Device& device, std::string& path) {
     transition_image_layout(device, image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     // thanks to destructors, staging buffer is bye byee
 }
-void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+*/
+Image::Image() {}
+
+Image::Image(Image&& image) noexcept {
+    *this = std::move(image);
+}
+
+Image& Image::operator=(Image&& image) noexcept {
+    _image = image._image;
+    _image_view = image._image_view;
+    _sampler = image._sampler;
+    _layout = image._layout;
+    _device = image._device;
+
+    _image_width = image._image_width;
+    _image_height = image._image_height;
+
+    image._image = nullptr;
+    image._image_view = nullptr;
+    image._sampler = nullptr;
+    image._layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image._device = nullptr;
+
+    return *this;
+}
+
+
+Image::Image(Device& device,
+             uint32_t width,
+             uint32_t height,
+             VkFormat format,
+             VkImageTiling tiling,
+             VkFilter filter,
+             VkSamplerAddressMode address_mode,
+             float anisotropy_level,
+             VkImageUsageFlags usage,
+             VmaMemoryUsage memory_usage) {
+    create(device, width, height, format, tiling, filter, address_mode, anisotropy_level, usage, memory_usage);
+}
+
+void Image::create(Device& device,
+                   uint32_t width,
+                   uint32_t height,
+                   VkFormat format,
+                   VkImageTiling tiling,
+                   VkFilter filter,
+                   VkSamplerAddressMode address_mode,
+                   float anisotropy_level,
+                   VkImageUsageFlags usage,
+                   VmaMemoryUsage memory_usage) {
     VkImageCreateInfo image_info{};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.imageType = VK_IMAGE_TYPE_2D;
@@ -48,7 +97,7 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
     image_info.extent.width = static_cast<uint32_t>(width);
     image_info.extent.depth = 1;
     image_info.mipLevels = 1;
-    image_info.arrayLayers = 1; 
+    image_info.arrayLayers = 1;
     image_info.format = format;
     image_info.tiling = tiling;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -57,19 +106,42 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.flags = 0;
 
-    CHECK_FOR_VK_RESULT(vkCreateImage(device.get_device(), &image_info, nullptr, &_image), "")
+    //CHECK_FOR_VK_RESULT(vkCreateImage(device.get_device(), &image_info, nullptr, &_image), "")
 
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(_device->get_device(), _image, &memory_requirements);
+    //VkMemoryRequirements memory_requirements;
+    //vkGetImageMemoryRequirements(_device->get_device(), _image, &memory_requirements);
 
-    VkMemoryAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.allocationSize = memory_requirements.size;
-    alloc_info.memoryTypeIndex = HelloTriangle::find_memory_type(device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    //VkMemoryAllocateInfo alloc_info{};
+    //alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    //alloc_info.allocationSize = memory_requirements.size;
+    //alloc_info.memoryTypeIndex = HelloTriangle::find_memory_type(device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    CHECK_FOR_VK_RESULT(vkAllocateMemory(device.get_device(), &alloc_info, nullptr, &_image_memory), "")
+    //CHECK_FOR_VK_RESULT(vkAllocateMemory(device.get_device(), &alloc_info, nullptr, &_image_memory), "")
 
-    vkBindImageMemory(device.get_device(), _image, _image_memory, 0);
+    //vkBindImageMemory(device.get_device(), _image, _image_memory, 0);
+
+    VmaAllocationCreateInfo allocation_info{};
+    allocation_info.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocation_info.usage = memory_usage;
+
+    if (memory_usage == VMA_MEMORY_USAGE_AUTO_PREFER_HOST) {
+        // Checks if its staging buffer (CPU -> GPU)
+        if (usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+            allocation_info.flags = 0;
+            allocation_info.preferredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        }
+        // Readback (GPU -> CPU)
+        if (usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+            allocation_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+            allocation_info.preferredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        }
+        allocation_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    } else if (memory_usage == VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE) {
+        // GPU only buffer
+        allocation_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    CHECK_FOR_VK_RESULT(vmaCreateImage(device.get_allocator(), &image_info, &allocation_info, &_image, &_allocation, nullptr), "Failed to create image!")
 
     VkImageViewCreateInfo view_info{};
     view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -81,8 +153,9 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
     view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
     view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
     view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 0;
-
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
 
     if (format != VK_FORMAT_D32_SFLOAT) {
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -90,21 +163,51 @@ void Image::create(Device& device, uint32_t width, uint32_t height, VkFormat for
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    CHECK_FOR_VK_RESULT(vkCreateImageView(device.get_device(), &view_info, nullptr, &_image_view), "")
+    CHECK_FOR_VK_RESULT(vkCreateImageView(device.get_device(), &view_info, nullptr, &_image_view), "Image view failed")
     //sampler
+    VkSamplerCreateInfo sampler_info{};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    // for filters, dc, we'll use the same var for both
+    sampler_info.minFilter = filter;
+    sampler_info.magFilter = filter;
+    //since we can just do the same across all components
+    sampler_info.addressModeU = address_mode;
+    sampler_info.addressModeV = address_mode;
+    sampler_info.addressModeW = address_mode;
+    //why need bool for arguments while we could evaluate if its not 0 or not
+    sampler_info.anisotropyEnable = anisotropy_level > 0.0f ? true : false;
+    sampler_info.maxAnisotropy = anisotropy_level;
+    // args for this later
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.mipLodBias = 0.0f;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 0.0f;
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    CHECK_FOR_VK_RESULT(vkCreateSampler(device.get_device(), &sampler_info, nullptr, &_sampler), "Sampler failed")
+
+    _layout = VK_IMAGE_LAYOUT_UNDEFINED;
     _image_width = width;
     _image_height = height;
     _device = &device;
 }
 //pisney dixar
-void transition_image_layout(Device& device, CommandBuffer& command_buffer, Image image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
+void Image::transition_image_layout(CommandPool& command_pool,
+                             VkFormat format,
+                             VkImageLayout new_layout) {
+    CommandBuffer transition_buffer(*_device, command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    transition_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
     VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    barrier.oldLayout = old_layout;
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = _layout;
     barrier.newLayout = new_layout;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image.get_image();
+    barrier.image = _image;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
@@ -116,15 +219,17 @@ void transition_image_layout(Device& device, CommandBuffer& command_buffer, Imag
     VkPipelineStageFlags src_stage;
     VkPipelineStageFlags dst_stage;
 
-    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    if (_layout == VK_IMAGE_LAYOUT_UNDEFINED
+        && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
         src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    } else if (_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+               && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
         src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -133,14 +238,17 @@ void transition_image_layout(Device& device, CommandBuffer& command_buffer, Imag
     }
 
     //long ass parameters
-    vkCmdPipelineBarrier(command_buffer.get(),
-                         src_stage, dst_stage, 0, 0, nullptr, 0,
-                         nullptr, 1, &barrier
-                         );
+    vkCmdPipelineBarrier(transition_buffer.get(), src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    transition_buffer.end();
+    transition_buffer.submit(nullptr, nullptr, nullptr, nullptr);
+    _layout = new_layout;
 }
 
-void Image::copy_buffer_to_image(CommandPool& command_pool, Buffer& buffer, uint32_t width, uint32_t height) {
-    VkDeviceSize size = width * height * 4;
+void Image::copy_buffer_to_image(CommandPool& command_pool,
+                                 Buffer& buffer,
+                                 uint32_t width,
+                                 uint32_t height) {
+    //VkDeviceSize size = width * height * 4;
     //Buffer buffer(_device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     CommandBuffer copy_buffer(*_device, command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     copy_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -157,8 +265,20 @@ void Image::copy_buffer_to_image(CommandPool& command_pool, Buffer& buffer, uint
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
 
-    vkCmdCopyBufferToImage(copy_buffer.get(), buffer.buffer(), _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBufferToImage(copy_buffer.get(),
+                           buffer.buffer(),
+                           _image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           1,
+                           &region);
     copy_buffer.end();
     // lets overload submit()
     copy_buffer.submit(nullptr, nullptr, nullptr, nullptr);
+}
+
+Image::~Image() {
+    std::cout << "IMAGE OOF \n";
+    if (_image != nullptr) {
+        vmaDestroyImage(_device->get_allocator(), _image, _allocation);
+    }
 }

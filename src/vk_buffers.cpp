@@ -18,16 +18,16 @@ Buffer::Buffer(Device& device, VkDeviceSize size, VkBufferUsageFlags usage, VmaM
     create(device, size, usage, memory_usage);
     //_is_copied = false;
 }
-/*
+
 Buffer::Buffer(const Buffer& buffer) {
     std::cout << "BUFFER COPY\n";
     *this = buffer;
 }
-*/
+
 Buffer::Buffer(Buffer&& buffer) noexcept {
     *this = std::move(buffer);
 }
-/*
+
 Buffer& Buffer::operator=(const Buffer& buffer) {
     std::cout << "BUFFER COPY\n";
     _buffer = buffer._buffer;
@@ -43,7 +43,7 @@ Buffer& Buffer::operator=(const Buffer& buffer) {
     //_is_copied = true;
     return *this;
 }
-*/
+
 Buffer& Buffer::operator=(Buffer&& buffer) noexcept {
     std::cout << "BUFFER MOVE\n";
 

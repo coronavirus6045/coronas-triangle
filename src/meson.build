@@ -2,6 +2,7 @@ source_files = [
     'main.cpp',
     'renderer.cpp',
     'vk_buffers.cpp',
+    'vk_image.cpp',
     'vk_command.cpp',
     'vk_device.cpp',
     'vk_instance.cpp',

@@ -134,10 +134,10 @@ void Renderer::initialize() {
     // Vertex buffer
 
     _vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
     };
 
     // is this stupid?
@@ -162,15 +162,16 @@ void Renderer::initialize() {
 
     _mvp_matrix = {};
 
-    //_uniform_buffer.resize(MAX_FRAMES_IN_FLIGHT);
+    _uniform_buffer.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        HelloTriangle::Buffer ubuf(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
-        _uniform_buffer.push_back(std::move(ubuf));
+        //the sisyphean task
+        //HelloTriangle::Buffer ubuf(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+        //_uniform_buffer.push_back(std::move(ubuf));
 
         // COMMENT 168 AND 169 AND UNCOMMENT BELOW AND LINE 165 TO NOT TRIGGER THE COPY CONSTRUCTOR OF VECTOR
-        //_uniform_buffer[i].create(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
-        //_uniform_buffer[i].map_memory(&_mvp_matrix, sizeof(MVPMatrix), 0, 0);
+        _uniform_buffer[i].create(*_device, sizeof(MVPMatrix),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+        _uniform_buffer[i].map_memory(&_mvp_matrix, sizeof(MVPMatrix), 0, 0);
     }
     // Fix constructor
     //_descriptor_layout.resize(MAX_FRAMES_IN_FLIGHT);
@@ -187,11 +188,33 @@ void Renderer::initialize() {
 */
     //
 
-    _descriptor_layout = new HelloTriangle::DescriptorLayout();
-    _descriptor_layout->add_binding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    _descriptor_layout->create(*_device);
+    // Image
+    _picture = new HelloTriangle::Image(load_image_from_file("test.png"));
 
-    _descriptor_pool = new HelloTriangle::DescriptorPool(*_device, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    _descriptor_layout = new HelloTriangle::DescriptorLayout();
+
+    std::vector<HelloTriangle::DescriptorBinding> bindings;
+
+    HelloTriangle::DescriptorBinding uniform_bind{};
+    uniform_bind.binding = 0;
+    uniform_bind.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniform_bind.descriptor_count = 1;
+    uniform_bind.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    HelloTriangle::DescriptorBinding image_bind{};
+    image_bind.binding = 1;
+    image_bind.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    image_bind.descriptor_count = 1;
+    image_bind.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    bindings.push_back(uniform_bind);
+    bindings.push_back(image_bind);
+
+    //_descriptor_layout->add_binding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+   // _descriptor_layout->add_binding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT);
+    _descriptor_layout->create(*_device, bindings);
+
+    _descriptor_pool = new HelloTriangle::DescriptorPool(*_device, 2, bindings);
 
     _descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
     std::cout << "DESCRIPTOR SET\n";
@@ -201,8 +224,9 @@ void Renderer::initialize() {
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         //HelloTriangle::DescriptorSet set;
         _descriptor_set[i].allocate(*_device, *_descriptor_pool, *_descriptor_layout);
-        _descriptor_set[i].write_descriptor(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &_uniform_buffer[i], 0, sizeof(MVPMatrix), nullptr);
+        _descriptor_set[i].write_descriptor(uniform_bind, &_uniform_buffer[i], 0, sizeof(MVPMatrix), nullptr);
         //_descriptor_set.push_back(set);
+        _descriptor_set[i].write_descriptor(image_bind, nullptr, 0, 0, _picture);
     }
 
     //Add constructor with no args
@@ -226,7 +250,7 @@ void Renderer::initialize() {
     vert_format.input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     vert_format.stride = sizeof(HelloTriangle::vertex);
 
-    std::vector<HelloTriangle::VertexAttribute> vert_attributes(2);
+    std::vector<HelloTriangle::VertexAttribute> vert_attributes(3);
 
     vert_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     vert_attributes[0].location = 0;
@@ -235,6 +259,10 @@ void Renderer::initialize() {
     vert_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     vert_attributes[1].location = 1;
     vert_attributes[1].offset = offsetof(HelloTriangle::vertex, color);
+
+    vert_attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
+    vert_attributes[2].location = 2;
+    vert_attributes[2].offset = offsetof(HelloTriangle::vertex, tex_coord);
 
     vert_format.attributes = vert_attributes;
 
@@ -394,6 +422,36 @@ VkExtent2D Renderer::window_size_to_extent() {
     SDL_GetWindowSize(_window, &width, &height);
     VkExtent2D extent = {(uint32_t) width, (uint32_t) height};
     return extent;
+}
+
+HelloTriangle::Image Renderer::load_image_from_file(std::string path) {
+    int32_t image_width = 0;
+    int32_t image_height = 0;
+    int32_t image_channels = 0;
+
+    stbi_uc* pixels = stbi_load(path.c_str(), &image_width, &image_height, &image_channels, STBI_rgb_alpha);
+
+    VkDeviceSize image_size = image_width * image_height * 4;
+
+    HelloTriangle::Image image;
+
+    if (!pixels) {
+        THROW_RUNTIME_ERROR("Image texture error.");
+    }
+
+    HelloTriangle::Buffer staging_buffer(*_device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+    staging_buffer.map_memory(pixels, image_size, 0);
+    staging_buffer.unmap_memory();
+
+    stbi_image_free(pixels);
+
+    image.create(*_device, image_width, image_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 0, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+
+    image.transition_image_layout(*_command_pool, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    image.copy_buffer_to_image(*_command_pool, staging_buffer, image_width, image_height);
+    image.transition_image_layout(*_command_pool, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // thanks to destructors, staging buffer is bye byee
+    return image;
 }
 
 void Renderer::cleanup() {
