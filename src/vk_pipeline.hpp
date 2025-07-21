@@ -45,6 +45,16 @@ struct GraphicsPipelineInfo {
         bool enable_multisampling;
         VkSampleCountFlagBits multisampling_sample_count;
 
+        bool enable_depth_test;
+        bool enable_depth_write;
+        VkCompareOp depth_compare_op;
+        bool enable_depth_bounds_test;
+        float depth_min_bounds;
+        float depth_max_bounds;
+        //Stencil later
+        //bool enable_stencil_test;
+        //VkStencilOpState stencil_front;
+
         bool enable_rasterizer_discard;
         VkPolygonMode rasterizer_polygon_mode;
         float rasterizer_line_width;
@@ -90,27 +100,48 @@ class PipelineLayout {
 //do we NEED this? ill maybe separate to PipelineInfo and its
 class RenderPass;
 //why
-class PipelineMaker {
+class GraphicsPipeline {
     public:
-        PipelineMaker(Device& device);
-        ~PipelineMaker();
+        GraphicsPipeline();
+        GraphicsPipeline(Device& device,
+                         GraphicsPipelineInfo info,
+                         PipelineLayout& layout,
+                         Shader& vertex_shader,
+                         Shader& fragment_shader,
+                         RenderPass& render_pass);
+        ~GraphicsPipeline();
         //Resets
         //void init();
-        void set_shader(HelloTriangle::Shader& shader,
-                        VkShaderStageFlagBits flags,
-                        std::string name);
-        PipelineHandle create_graphics_pipeline(GraphicsPipelineInfo info,
-                                                PipelineLayout& layout,
-                                                RenderPass& render_pass);
-
-        void delete_pipeline(PipelineHandle pipeline);
+        void create(Device& device,
+                    GraphicsPipelineInfo info,
+                    PipelineLayout& layout,
+                    Shader& vertex_shader,
+                    Shader& fragment_shader,
+                    RenderPass& render_pass);
+        VkPipeline& get() { return _pipeline; }
+        //void delete_pipeline(PipelineHandle pipeline);
 
     private:
-        std::vector<VkPipelineShaderStageCreateInfo> _shader_stage_infos;
+        VkPipeline _pipeline;
 
-        VkPipeline p_pipeline;
+        Device* _device;
+};
 
-        Device& _device;
+struct ComputePipelineInfo {};
+
+class ComputePipeline {
+    public:
+        ComputePipeline();
+        ComputePipeline(Device& device, PipelineLayout& layout, Shader& shader, std::string name);
+        ~ComputePipeline();
+        // s'all good man
+        void create(Device& device, PipelineLayout& layout, Shader& shader, std::string name);
+        VkPipeline& get() { return _pipeline; }
+
+    private:
+        VkPipeline _pipeline;
+
+        Device* _device;
 };
 
 struct RenderAttachment {
@@ -132,6 +163,7 @@ struct RenderAttachmentReference {
 struct Subpass {
         VkPipelineBindPoint bind_point;
         std::vector<RenderAttachmentReference> color_references;
+        RenderAttachmentReference depth_reference;
         //std::vector<RenderAttachment> attachment; The other attachments later.
 };
 
@@ -143,6 +175,8 @@ struct SubpassDependency {
         VkAccessFlags src_access_mask;
         VkAccessFlags dst_access_mask;
 };
+
+// Once i go through dynamic rendering, this SHIT and Framebuffer is now useless
 
 class RenderPass {
     public:
@@ -161,10 +195,12 @@ class RenderPass {
                     std::vector<RenderAttachment> attachments,
                     std::vector<SubpassDependency> dependencies);
         VkRenderPass& get() { return _render_pass; }
+        uint32_t get_attachment_size() { return _attachment_size; }
 
     private:
         VkAttachmentReference _create_reference(RenderAttachmentReference ref);
         VkRenderPass _render_pass;
+        uint32_t _attachment_size;
         //depth coming soon
         //maybe ill remove if i decide to use dynamic rendering
         Device* _device;
@@ -181,15 +217,14 @@ class Framebuffer {
 
         ~Framebuffer();
         void create(Device& device, RenderPass& pass, Image& image);
-        void create(Device& device, RenderPass& pass, Swapchain& swapchain);
-        VkFramebuffer& get() { return _framebuffer[0]; }
+        // chat, is this real?
+        void create(Device& device, RenderPass& pass, std::vector<std::shared_ptr<Image>> images);
+        VkFramebuffer& get() { return _framebuffer; }
         // This is for swapchain framebuffers with multiple VkFramebuffer handles, if called on non fb swapchains,
         // it only returns the only framebuffer handle (same as get() without arguments);
-        VkFramebuffer& get(uint32_t swapchain_index) { return _is_swapchain_framebuffer ? _framebuffer[swapchain_index] : _framebuffer[0]; }
-
     private:
         bool _is_swapchain_framebuffer;
-        std::vector<VkFramebuffer> _framebuffer;
+        VkFramebuffer _framebuffer;
         Device* _device;
 };
 

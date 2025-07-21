@@ -49,10 +49,10 @@ class Renderer {
 
         // Swapchain and images
         HelloTriangle::Swapchain* _swapchain;
-        std::vector<VkImage> _swapchain_images;
+        std::vector<std::shared_ptr<HelloTriangle::Image>> _swapchain_images;
 
         // Main pipeline and synchronization maker
-        HelloTriangle::PipelineMaker* _pipeline_maker;
+        HelloTriangle::GraphicsPipeline* _pipeline_main;
         HelloTriangle::SyncObjectMaker* _sync_object_maker;
 
         // Sync objects
@@ -77,7 +77,7 @@ class Renderer {
         std::vector<HelloTriangle::Shader> _shaders;
 
         // Framebuffer
-        HelloTriangle::Framebuffer* _main_framebuffer;
+        std::vector<HelloTriangle::Framebuffer> _main_framebuffer;
 
         // Pipelines
         std::vector<HelloTriangle::PipelineHandle> _pipelines;
@@ -90,7 +90,8 @@ class Renderer {
         std::vector<HelloTriangle::Buffer> _uniform_buffer;
 
         // The Images
-        HelloTriangle::Image* _picture;
+        std::shared_ptr<HelloTriangle::Image> _picture;
+        std::shared_ptr<HelloTriangle::Image> _depth_image;
 
         // MVP matrix
         struct MVPMatrix {

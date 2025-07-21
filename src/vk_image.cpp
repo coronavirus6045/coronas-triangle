@@ -53,15 +53,20 @@ Image& Image::operator=(Image&& image) noexcept {
     _sampler = image._sampler;
     _layout = image._layout;
     _device = image._device;
+    _allocation = image._allocation;
 
     _image_width = image._image_width;
     _image_height = image._image_height;
+
+    _is_swap_image = image._is_swap_image;
+    //_del = image._del;
 
     image._image = nullptr;
     image._image_view = nullptr;
     image._sampler = nullptr;
     image._layout = VK_IMAGE_LAYOUT_UNDEFINED;
     image._device = nullptr;
+    image._allocation = nullptr;
 
     return *this;
 }
@@ -78,6 +83,14 @@ Image::Image(Device& device,
              VkImageUsageFlags usage,
              VmaMemoryUsage memory_usage) {
     create(device, width, height, format, tiling, filter, address_mode, anisotropy_level, usage, memory_usage);
+}
+
+Image::Image(Swapchain& swapchain, uint32_t index) {
+    _image = swapchain.get_images()[index];
+    _image_view = swapchain.get_image_views()[index];
+    _image_width = swapchain.get_image_width();
+    _image_height = swapchain.get_image_height();
+    _is_swap_image = true;
 }
 
 void Image::create(Device& device,
@@ -277,8 +290,13 @@ void Image::copy_buffer_to_image(CommandPool& command_pool,
 }
 
 Image::~Image() {
-    std::cout << "IMAGE OOF \n";
-    if (_image != nullptr) {
+    if ((_image != nullptr && _allocation != nullptr) && (_is_swap_image == false)) {
+        std::cout << "IMAGE OOF \n";
+        //_del = true;
         vmaDestroyImage(_device->get_allocator(), _image, _allocation);
+        vkDestroyImageView(_device->get_device(), _image_view, nullptr);
+        vkDestroySampler(_device->get_device(), _sampler, nullptr);
+    } else {
+        std::cout << "IMAGE NOT REALLY OOF \n";
     }
 }

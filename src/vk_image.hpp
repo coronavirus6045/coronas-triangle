@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "vk_buffers.hpp"
 #include "vk_command.hpp"
+#include "vk_presentation.hpp"
 #include "vk_device.hpp"
 #include <vulkan/vulkan_core.h>
 
@@ -22,10 +23,14 @@ class Image {
               float anisotropy_level,
               VkImageUsageFlags usage,
               VmaMemoryUsage memory_usage);
+        // image from swapchain
+        Image(Swapchain& swapchain, uint32_t index);
         ~Image();
-        //Buffer(const Buffer& buffer);
+        //hope default works
+        //Image(const Image& image) = default;
         Image(Image&& image) noexcept;
-        //Buffer& operator=(const Buffer& buffer);
+        // who cares about copying, use shared_ptr instead for vectors like a real chad
+        //Image& operator=(const Image& image) = default;
         Image& operator=(Image&& image) noexcept;
 
         //creates VkImage (for fine grained stuff)
@@ -39,6 +44,7 @@ class Image {
                     float anisotropy_level,
                     VkImageUsageFlags usage,
                     VmaMemoryUsage memory_usage);
+
         //image and its memory
         void transition_image_layout(CommandPool& command_pool,
                                      VkFormat format,
@@ -58,6 +64,8 @@ class Image {
         VkImage _image;
         VmaAllocation _allocation;
         //VkDeviceMemory _image_memory;
+        bool _is_swap_image;
+        //bool _del;
         VkImageView _image_view;
         VkSampler _sampler;
         uint32_t _image_width;

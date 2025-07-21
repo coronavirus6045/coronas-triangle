@@ -60,9 +60,9 @@ void Renderer::initialize() {
     
     _swapchain = new HelloTriangle::Swapchain(*_device, _surface, VK_FORMAT_B8G8R8A8_SRGB, VK_PRESENT_MODE_FIFO_KHR, window_size_to_extent());
 
-    // Main pipeline maker
+    // Main pipeline maker (Gone forever :))
     
-    _pipeline_maker = new HelloTriangle::PipelineMaker(*_device);
+    //_pipeline_maker = new HelloTriangle::PipelineMaker(*_device);
     
     // Command pool
     
@@ -83,8 +83,8 @@ void Renderer::initialize() {
     
     // Main shaders (should be in a separate functi)
 
-    HelloTriangle::Shader main_vert(*_device, "main_vert.spv");
-    HelloTriangle::Shader main_frag(*_device, "main_frag.spv");
+    HelloTriangle::Shader main_vert(*_device, "main_vert.spv", "main");
+    HelloTriangle::Shader main_frag(*_device, "main_frag.spv", "main");
 
 
     std::vector<HelloTriangle::RenderAttachmentReference> attachment_refs;
@@ -95,17 +95,24 @@ void Renderer::initialize() {
 
     attachment_refs.push_back(color_ref);
 
+
+    HelloTriangle::RenderAttachmentReference depth_ref;
+    depth_ref.attachment_index = 1;
+    depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+
     std::vector<HelloTriangle::Subpass> subpasses;
 
     HelloTriangle::Subpass subpass;
     subpass.color_references = attachment_refs;
+    subpass.depth_reference = depth_ref;
     subpass.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     subpasses.push_back(subpass);
 
-    std::vector<HelloTriangle::RenderAttachment> attachments;
+    //std::vector<HelloTriangle::RenderAttachment> attachments;
 
-    HelloTriangle::RenderAttachment color_attachment;
+    HelloTriangle::RenderAttachment color_attachment{};
     color_attachment.format = _swapchain->get_format();
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     color_attachment.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -115,17 +122,28 @@ void Renderer::initialize() {
     color_attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     color_attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    attachments.push_back(color_attachment);
+    HelloTriangle::RenderAttachment depth_attachment{};
+    depth_attachment.format = VK_FORMAT_D32_SFLOAT;
+    depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth_attachment.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment.stencil_load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth_attachment.stencil_store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth_attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+
+    std::vector<HelloTriangle::RenderAttachment> attachments = {color_attachment, depth_attachment};
 
     std::vector<HelloTriangle::SubpassDependency> deps;
 
     HelloTriangle::SubpassDependency dependency{};
     dependency.src_subpass = VK_SUBPASS_EXTERNAL;
     dependency.dst_subpass = 0;
-    dependency.src_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.src_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.src_access_mask = 0;
-    dependency.dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dst_access_mask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dst_access_mask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     deps.push_back(dependency);
 
@@ -134,10 +152,15 @@ void Renderer::initialize() {
     // Vertex buffer
 
     _vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+                 {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                 {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                 {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                 {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+                 {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                 {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                 {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                 {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
 
     // is this stupid?
@@ -151,7 +174,8 @@ void Renderer::initialize() {
     std::cout << "VERTEX BUFFER\n";
 
     _indices = {
-        0, 1, 2, 2, 3, 0
+                0, 1, 2, 2, 3, 0,
+                4, 5, 6, 6, 7, 4
     };
     
     //HelloTriangle::Buffer ibuf = HelloTriangle::create_index_buffer(*_device, _command_pool->get(), _indices);
@@ -189,7 +213,9 @@ void Renderer::initialize() {
     //
 
     // Image
-    _picture = new HelloTriangle::Image(load_image_from_file("test.png"));
+    _picture = std::make_shared<HelloTriangle::Image>(HelloTriangle::Image(load_image_from_file("test.png")));
+    // do we need a sampler for depth image?
+    _depth_image = std::make_shared<HelloTriangle::Image>(HelloTriangle::Image(*_device, _swapchain->get_image_width(), _swapchain->get_image_height(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 0, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE));
 
     _descriptor_layout = new HelloTriangle::DescriptorLayout();
 
@@ -226,14 +252,14 @@ void Renderer::initialize() {
         _descriptor_set[i].allocate(*_device, *_descriptor_pool, *_descriptor_layout);
         _descriptor_set[i].write_descriptor(uniform_bind, &_uniform_buffer[i], 0, sizeof(MVPMatrix), nullptr);
         //_descriptor_set.push_back(set);
-        _descriptor_set[i].write_descriptor(image_bind, nullptr, 0, 0, _picture);
+        _descriptor_set[i].write_descriptor(image_bind, nullptr, 0, 0, _picture.get());
     }
 
     //Add constructor with no args
     _pipeline_layout = new HelloTriangle::PipelineLayout(*_device, *_descriptor_layout, 0);
     
-    _pipeline_maker->set_shader(main_vert, VK_SHADER_STAGE_VERTEX_BIT, "main");
-    _pipeline_maker->set_shader(main_frag, VK_SHADER_STAGE_FRAGMENT_BIT, "main");
+    //_pipeline_maker->set_shader(main_vert, VK_SHADER_STAGE_VERTEX_BIT, "main");
+    //_pipeline_maker->set_shader(main_frag, VK_SHADER_STAGE_FRAGMENT_BIT, "main");
     
     //Color blend attachment
     
@@ -286,21 +312,30 @@ void Renderer::initialize() {
     pipeline_main_info.multisampling_sample_count = VK_SAMPLE_COUNT_1_BIT;
     pipeline_main_info.enable_color_blending_logic_op = false;
     pipeline_main_info.vertex_formats = vert_formats;
+    pipeline_main_info.enable_depth_test = true;
+    pipeline_main_info.enable_depth_write = true;
+    pipeline_main_info.depth_compare_op = VK_COMPARE_OP_LESS;
+
+        //_pipelines[0] = _pipeline_maker->create_graphics_pipeline(pipeline_main_info, *_pipeline_layout, *_main_pass);
+    _pipeline_main = new HelloTriangle::GraphicsPipeline(*_device, pipeline_main_info, *_pipeline_layout, main_vert, main_frag, *_main_pass);
+
+    uint32_t swapchain_size = _swapchain->get_images().size();
 
 
-    _pipelines[0] = _pipeline_maker->create_graphics_pipeline(pipeline_main_info, *_pipeline_layout, *_main_pass);
+    _main_framebuffer.resize(swapchain_size);
+    _swapchain_images.resize(swapchain_size);
 
-    //_main_framebuffer.resize(_swapchain_size);
+    for (uint32_t i = 0; i < swapchain_size; i++) {
+        _swapchain_images[i] = std::make_shared<HelloTriangle::Image>(HelloTriangle::Image(*_swapchain, i));
 
-    //for (uint32_t i = 0; i < _swapchain_size; i++) {
-    _main_framebuffer = new HelloTriangle::Framebuffer();
-    _main_framebuffer->create(*_device, *_main_pass, *_swapchain);
-    //}
+        std::vector<std::shared_ptr<HelloTriangle::Image>> images = {_swapchain_images[i], _depth_image};
+
+        _main_framebuffer[i] = HelloTriangle::Framebuffer();
+        _main_framebuffer[i].create(*_device, *_main_pass, images);
+    }
 
     // Synchronization
     _sync_object_maker = new HelloTriangle::SyncObjectMaker(*_device);
-
-    _swapchain_images = _swapchain->get_images();
 
     _render_semaphore.resize(_swapchain_images.size());
     _image_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
@@ -341,14 +376,16 @@ void Renderer::draw() {
     pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     pass_info.renderPass = _main_pass->get();
     //culprit
-    pass_info.framebuffer = _main_framebuffer->get(image_index);
+    pass_info.framebuffer = _main_framebuffer[image_index].get();
     pass_info.renderArea.offset = {0, 0};
     pass_info.renderArea.extent = extent;
 
-    VkClearValue clear_color{{{0.0f, 0.0f, 0.0f, 0.0f}}};
+    std::array<VkClearValue, 2> clear_values{};
+    clear_values[0].color = {0.0f, 0.0f, 0.0f, 0.0f};
+    clear_values[1].depthStencil = {1.0f, 0};
 
-    pass_info.clearValueCount = 1;
-    pass_info.pClearValues = &clear_color;
+    pass_info.clearValueCount = clear_values.size();
+    pass_info.pClearValues = clear_values.data();
 
     vkCmdBeginRenderPass(_main_command_buffer[_frame_index].get(), &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -371,7 +408,7 @@ void Renderer::draw() {
     vkCmdBindVertexBuffers(_main_command_buffer[_frame_index].get(), 0, 1, &_vertex_buffer->buffer(), offsets);
     vkCmdBindIndexBuffer(_main_command_buffer[_frame_index].get(), _index_buffer->buffer(), 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdBindPipeline(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline) _pipelines[0]);
+    vkCmdBindPipeline(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline_main->get());
 
     vkCmdBindDescriptorSets(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline_layout->get(), 0, 1, &_descriptor_set[_frame_index].get(), 0, nullptr);
 
@@ -460,7 +497,7 @@ void Renderer::cleanup() {
     delete _swapchain;
 
     //lets go back to turning pipeline as a single class instead of handle and maker
-    _pipeline_maker->delete_pipeline(_pipelines[0]);
+    //_pipeline_maker->delete_pipeline(_pipelines[0]);
 
     //delete _pipeline_maker;
 
@@ -478,7 +515,7 @@ void Renderer::cleanup() {
     //delete _sync_object_maker;
 
     delete _main_pass;
-    delete _main_framebuffer;
+    //delete _main_framebuffer;
 
     delete _vertex_buffer;
     delete _index_buffer;

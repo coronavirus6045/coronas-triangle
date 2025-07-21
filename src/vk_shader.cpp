@@ -2,7 +2,7 @@
 
 using HelloTriangle::Shader;
 
-Shader::Shader(Device& device, std::string file_path) : _device(device) {
+Shader::Shader(Device& device, std::string file_path, std::string name) : _device(device) {
     std::ifstream shader_file(file_path, std::ios::ate | std::ios::binary);
 
     if (!shader_file.is_open()) {
@@ -21,6 +21,7 @@ Shader::Shader(Device& device, std::string file_path) : _device(device) {
     createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
     CHECK_FOR_VK_RESULT(vkCreateShaderModule(_device.get_device(), &createInfo, nullptr, &_shader_module), "")
+    _name = name;
 }
 
 Shader::~Shader() {

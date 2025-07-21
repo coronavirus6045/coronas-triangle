@@ -1,18 +1,44 @@
 #include "vk_pipeline.hpp"
 #include "vk_shader.hpp"
 #include <cstdint>
-using HelloTriangle::PipelineMaker;
+using HelloTriangle::GraphicsPipeline;
 using HelloTriangle::PipelineHandle;
+using HelloTriangle::ComputePipeline;
 using HelloTriangle::RenderPass;
 using HelloTriangle::Subpass;
 using HelloTriangle::RenderAttachment;
 using HelloTriangle::PipelineLayout;
 using HelloTriangle::Framebuffer;
 
-//pipeline_state::pipeline_state(VkDevice& device_arg) : device(device_arg) {}
-PipelineMaker::PipelineMaker(Device& device) : _device(device) {}
+GraphicsPipeline::GraphicsPipeline() {}
 
-PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info, PipelineLayout& layout, RenderPass& render_pass) {
+GraphicsPipeline::GraphicsPipeline(Device& device,
+                                   GraphicsPipelineInfo info,
+                                   PipelineLayout& layout,
+                                   Shader& vertex_shader,
+                                   Shader& fragment_shader,
+                                   RenderPass& render_pass) {
+    create(device, info, layout, vertex_shader, fragment_shader, render_pass);
+}
+
+void GraphicsPipeline::create(Device& device, GraphicsPipelineInfo info, PipelineLayout& layout, Shader& vertex_shader, Shader& fragment_shader, RenderPass& render_pass) {
+    std::array<VkPipelineShaderStageCreateInfo, 2> shader_stage_infos;
+
+    VkPipelineShaderStageCreateInfo vertex_stage_info{};
+    vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertex_stage_info.module = vertex_shader.get_shader_module();
+    vertex_stage_info.pName = vertex_shader.get_name().c_str();
+
+    VkPipelineShaderStageCreateInfo fragment_stage_info{};
+    fragment_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragment_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragment_stage_info.module = fragment_shader.get_shader_module();
+    fragment_stage_info.pName = fragment_shader.get_name().c_str();
+
+    shader_stage_infos[0] = vertex_stage_info;
+    shader_stage_infos[1] = fragment_stage_info;
+
     std::vector<VkVertexInputBindingDescription> bind_descriptions(info.vertex_formats.size());
 
     uint32_t total_attributes = 0;
@@ -57,7 +83,7 @@ PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info
     VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
     input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_assembly_info.topology = info.vertex_input_topology;
-    input_assembly_info.primitiveRestartEnable = (VkBool32) info.enable_primitive_restart; //wtf is this
+    input_assembly_info.primitiveRestartEnable = info.enable_primitive_restart; //wtf is this
 
     VkPipelineRasterizationStateCreateInfo rasterizer_info{};
     rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -72,9 +98,19 @@ PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info
     rasterizer_info.depthBiasClamp = info.rasterizer_depth_bias_clamp;
     rasterizer_info.depthBiasSlopeFactor = info.rasterizer_depth_bias_slope;
 
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_info{};
+    depth_stencil_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil_info.depthTestEnable = info.enable_depth_test;
+    depth_stencil_info.depthWriteEnable = info.enable_depth_write;
+    depth_stencil_info.depthCompareOp = info.depth_compare_op;
+    depth_stencil_info.depthBoundsTestEnable = info.enable_depth_bounds_test;
+    depth_stencil_info.minDepthBounds = info.depth_min_bounds;
+    depth_stencil_info.maxDepthBounds = info.depth_max_bounds;
+    depth_stencil_info.stencilTestEnable = VK_FALSE;
+
     VkPipelineMultisampleStateCreateInfo multisampling_info{};
     multisampling_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling_info.sampleShadingEnable = (VkBool32) info.enable_multisampling;
+    multisampling_info.sampleShadingEnable = info.enable_multisampling;
     multisampling_info.rasterizationSamples = info.multisampling_sample_count;
 
     std::vector<VkPipelineColorBlendAttachmentState> attachments(info.attachments.size());
@@ -103,14 +139,14 @@ PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info
 
     VkGraphicsPipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.stageCount = _shader_stage_infos.size();
-    pipeline_info.pStages = _shader_stage_infos.data();
+    pipeline_info.stageCount = shader_stage_infos.size();
+    pipeline_info.pStages = shader_stage_infos.data();
     pipeline_info.pVertexInputState = &vertex_input_info;
     pipeline_info.pInputAssemblyState = &input_assembly_info;
     pipeline_info.pViewportState = &viewport_info;
     pipeline_info.pRasterizationState = &rasterizer_info;
     pipeline_info.pMultisampleState = &multisampling_info;
-    pipeline_info.pDepthStencilState = nullptr;
+    pipeline_info.pDepthStencilState = &depth_stencil_info;
     pipeline_info.pColorBlendState = &blend_info;
     pipeline_info.pDynamicState = &dynamic_state_info;
     pipeline_info.layout = layout.get();
@@ -119,24 +155,46 @@ PipelineHandle PipelineMaker::create_graphics_pipeline(GraphicsPipelineInfo info
     pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
     pipeline_info.basePipelineIndex = -1;
 
-    VkPipeline pipeline;
     //VkPipelineDepthStencilStateCreateInfo
-    CHECK_FOR_VK_RESULT(vkCreateGraphicsPipelines(_device.get_device(), nullptr, 1, &pipeline_info, nullptr, &pipeline), "")
-    _shader_stage_infos.clear();
-    return (PipelineHandle) pipeline;
+    CHECK_FOR_VK_RESULT(vkCreateGraphicsPipelines(device.get_device(), nullptr, 1, &pipeline_info, nullptr, &_pipeline), "")
+    //_shader_stage_infos.clear();
+    //return (PipelineHandle) pipeline;
+    _device = &device;
 }
 
-void PipelineMaker::set_shader(HelloTriangle::Shader& shader, VkShaderStageFlagBits flags, std::string name) {
+GraphicsPipeline::~GraphicsPipeline() {
+    if (_pipeline != nullptr) {
+        vkDestroyPipeline(_device->get_device(), _pipeline, nullptr);
+    }
+}
+
+ComputePipeline::ComputePipeline(Device& device, PipelineLayout& layout, Shader& shader, std::string name) {
+    create(device, layout, shader, name);
+}
+
+
+void ComputePipeline::create(Device& device, PipelineLayout& layout, Shader& shader, std::string name) {
     VkPipelineShaderStageCreateInfo shader_stage_info{};
     shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shader_stage_info.stage = flags;
-    shader_stage_info.module = shader.get();
+    shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    shader_stage_info.module = shader.get_shader_module();
     shader_stage_info.pName = name.c_str();
-    _shader_stage_infos.push_back(shader_stage_info);
+
+    VkComputePipelineCreateInfo pipeline_info{};
+    pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipeline_info.stage = shader_stage_info;
+    pipeline_info.layout = layout.get();
+    pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
+    pipeline_info.basePipelineIndex = -1;
+
+    CHECK_FOR_VK_RESULT(vkCreateComputePipelines(device.get_device(), nullptr, 1, &pipeline_info, nullptr, &_pipeline), "Compute pipeline failed!")
+    _device = &device;
 }
 
-void PipelineMaker::delete_pipeline(PipelineHandle pipeline) {
-    vkDestroyPipeline(_device.get_device(), (VkPipeline) pipeline, nullptr);
+ComputePipeline::~ComputePipeline() {
+    if (_pipeline != nullptr) {
+        vkDestroyPipeline(_device->get_device(), _pipeline, nullptr);
+    }
 }
 
 PipelineLayout::PipelineLayout(Device& device, DescriptorLayout& layout, VkPipelineLayoutCreateFlags flags) {
@@ -223,8 +281,8 @@ RenderPass& RenderPass::operator=(RenderPass&& pass) noexcept {
 
 
 void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vector<RenderAttachment> attachments, std::vector<SubpassDependency> dependencies) {
-    //std::vector<VkAttachmentReference> references;
-    /*
+    std::vector<VkAttachmentReference> references;
+
     std::vector<VkAttachmentDescription> _attachments;
     _attachments.resize(attachments.size());
 
@@ -247,6 +305,12 @@ void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vec
     std::vector<VkSubpassDescription> _subpasses;
     _subpasses.resize(subpasses.size());
 
+    //the greater good
+    std::vector<std::vector<VkAttachmentReference>> subpass_color_refs;
+    std::vector<VkAttachmentReference> subpass_depth_refs;
+    subpass_color_refs.resize(subpasses.size());
+    subpass_depth_refs.resize(subpasses.size());
+
     for (uint32_t i = 0; i < _subpasses.size(); i++) {
         //_subpasses[i].pipelineBindPoint = subpasses[i].bind_point;
 
@@ -257,8 +321,13 @@ void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vec
             _color_references[i] = _create_reference(subpasses[i].color_references[j]);
         }
 
-        _subpasses[i].colorAttachmentCount = _color_references.size();
-        _subpasses[i].pColorAttachments = _color_references.data();
+        subpass_color_refs[i] = _color_references;
+
+        subpass_depth_refs[i] = _create_reference(subpasses[i].depth_reference);
+
+        _subpasses[i].colorAttachmentCount = subpass_color_refs[i].size();
+        _subpasses[i].pColorAttachments = subpass_color_refs[i].data();
+        _subpasses[i].pDepthStencilAttachment = &subpass_depth_refs[i];
     }
 
     std::vector<VkSubpassDependency> _dependencies(dependencies.size());
@@ -273,11 +342,11 @@ void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vec
     }
 
 
-    render_pass_info.subpassCount = (uint32_t) subpasses.size();
+    render_pass_info.subpassCount = (uint32_t) _subpasses.size();
     render_pass_info.pSubpasses = _subpasses.data();
     render_pass_info.dependencyCount = _dependencies.size();
     render_pass_info.pDependencies = _dependencies.data();
-*/
+/*
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = VK_FORMAT_B8G8R8A8_SRGB;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -312,9 +381,11 @@ void RenderPass::create(Device& device, std::vector<Subpass> subpasses, std::vec
     render_pass_info.subpassCount = 1;
     render_pass_info.pSubpasses = &subpass;
     render_pass_info.dependencyCount = 1;
-    render_pass_info.pDependencies = &dependency;
+    render_pass_info.pDependencies = &dependency
+                                         */
     VkResult result = vkCreateRenderPass(device.get_device(), &render_pass_info, nullptr, &_render_pass);
     //CHECK_FOR_VK_RESULT(vkCreateRenderPass(device.get_device(), &render_pass_info, nullptr, &_render_pass), "")
+    _attachment_size = _attachments.size();
     _device = &device;
 }
 
@@ -346,13 +417,13 @@ Framebuffer& Framebuffer::operator=(Framebuffer&& framebuffer) noexcept {
     _framebuffer = framebuffer._framebuffer;
     _device = framebuffer._device;
 
-    framebuffer._framebuffer.clear();
+    framebuffer._framebuffer = nullptr;
     framebuffer._device = nullptr;
     return *this;
 }
 
 void Framebuffer::create(Device& device, RenderPass& pass, Image& image) {
-    _framebuffer.resize(1);
+    //_framebuffer.resize(1);
     VkFramebufferCreateInfo framebuffer_info{};
     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebuffer_info.pNext = nullptr;
@@ -366,42 +437,40 @@ void Framebuffer::create(Device& device, RenderPass& pass, Image& image) {
     framebuffer_info.height = image.get_image_height();
     framebuffer_info.layers = 1;
 
-    CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer[0]), "")
+    CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer), "")
 
     _is_swapchain_framebuffer = false;
     _device = &device;
 }
 
-void Framebuffer::create(Device& device, RenderPass& pass, Swapchain& swapchain) {
-    uint32_t swap_size = swapchain.get_images().size();
-    _framebuffer.resize(swap_size);
+void Framebuffer::create(Device& device, RenderPass& pass, std::vector<std::shared_ptr<Image>> images) {
+    uint32_t size = images.size();
     std::vector<VkImageView> views; //I could do a C-style array
-    views.resize(swap_size);
-    for (uint32_t i = 0; i < swap_size; i++) {
+    views.resize(size);
+    for (uint32_t i = 0; i < size; i++) {
+        views[i] = (images[i]->get_image_view());
+    }
         VkFramebufferCreateInfo framebuffer_info;
         framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebuffer_info.pNext = nullptr;
         framebuffer_info.flags = 0;
 
         framebuffer_info.renderPass = pass.get();
-        framebuffer_info.attachmentCount = 1;
+        framebuffer_info.attachmentCount = pass.get_attachment_size();
 
-        views[i] = swapchain.get_image_views()[i];
-
-
-        framebuffer_info.pAttachments = &views[i];
-        framebuffer_info.width = swapchain.get_image_width();
-        framebuffer_info.height = swapchain.get_image_height();
+        framebuffer_info.pAttachments = views.data();
+        framebuffer_info.width = images[0]->get_image_width();
+        framebuffer_info.height = images[0]->get_image_height();
         framebuffer_info.layers = 1;
 
-        CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer[i]), "")
-    }
+        CHECK_FOR_VK_RESULT(vkCreateFramebuffer(device.get_device(), &framebuffer_info, nullptr, &_framebuffer), "")
+
     _is_swapchain_framebuffer = true;
     _device = &device;
 }
 
 Framebuffer::~Framebuffer() {
-    for (uint32_t i = 0; i < _framebuffer.size(); i++) {
-        vkDestroyFramebuffer(_device->get_device(), _framebuffer[i], nullptr);
+    if (_framebuffer != nullptr) {
+        vkDestroyFramebuffer(_device->get_device(), _framebuffer, nullptr);
     }
 }
