@@ -5,9 +5,11 @@ add_languages('c')
 subdir('src')
 subdir('src/third_party/')
 
+includes = include_directories(['src/third_party/imgui/', 'src/third_party/volk/'])
+
 deps = [dependency('dl'),
-        dependency('glfw3', modules: ['glfw']),
+        dependency('sdl2'),
        
 ]
 
-executable('vktest', sources, dependencies: deps)
+executable('vktest', sources, dependencies: deps, include_directories : includes, cpp_args : '-DIMGUI_IMPL_VULKAN_USE_VOLK')

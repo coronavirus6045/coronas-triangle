@@ -1,23 +1,23 @@
 #pragma once
-
 #include "common.hpp"
-
+#include "vk_device.hpp"
 
 namespace HelloTriangle {
-    class sync_objects {
-        public:
-        sync_objects(VkDevice& device_arg);
-        ~sync_objects();
+//
+typedef VkFence Fence;
+typedef VkSemaphore Semaphore;
 
-        void create_sync_objects();
-        std::vector<VkSemaphore>& get_image_available_semaphores() {return imageAvailableSemaphores;}
-        std::vector<VkSemaphore>& get_render_finished_semaphores() {return renderFinishedSemaphores;}
-        std::vector<VkFence>& get_in_flight_fences() {return inFlightFences;}
-        private:
-        std::vector<VkSemaphore> imageAvailableSemaphores;
-        std::vector<VkSemaphore> renderFinishedSemaphores;
-        std::vector<VkFence> inFlightFences;
+class SyncObjectMaker {
+    public:
+        SyncObjectMaker(Device& device);
+        ~SyncObjectMaker();
 
-        VkDevice& device;
-    };
-}
+        Fence create_fence();
+        Semaphore create_semaphore();
+
+        void delete_sync_object(Fence fence, Semaphore semaphore);
+
+    private:
+        Device* _device;
+};
+} // namespace HelloTriangle

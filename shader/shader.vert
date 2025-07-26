@@ -1,8 +1,17 @@
 #version 450
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;
-layout(location = 0) out vec3 fragColor;
 
+
+layout(binding = 0) uniform MVPMatrix {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} _mvp_matrix;
+
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec3 in_color;
+layout(location = 2) in vec2 in_tex_coord;
+layout(location = 0) out vec3 frag_color;
+layout(location = 1) out vec2 tex_coord;
 // down right = 1
 //vec2 positions[3] = vec2[](
 //  vec2(0.0, -0.5),
@@ -18,6 +27,7 @@ layout(location = 0) out vec3 fragColor;
 //);
 
 void main() {
-    gl_Position = vec4(inPosition, 1.0);
-    fragColor = inColor;
+    gl_Position = _mvp_matrix.proj * _mvp_matrix.view * _mvp_matrix.model * vec4(in_position, 1.0);
+    frag_color = in_color;
+    tex_coord = in_tex_coord;
 }

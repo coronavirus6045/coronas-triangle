@@ -1,25 +1,49 @@
 #pragma once
 
 #include "common.hpp"
-#include "scene/scene_obj.hpp"
+#include "vk_device.hpp"
+#include "vk_syncobjects.hpp"
+
+#include <cstdint>
+#include <vector>
+#include <vulkan/vulkan_core.h>
+#define IMGUI_IMPL_VULKAN_USE_VOLK
 
 
 namespace HelloTriangle {
-    class command_objects {
-        public:
-        command_objects(VkPhysicalDevice& physical_device, VkDevice& device_arg, VkSurfaceKHR& surface_arg);
-        ~command_objects();
-        void create_command_pool();
-        void create_command_buffer();
-        void record_command_buffer(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkExtent2D swapChainExtent, std::vector<VkFramebuffer> swapChainFramebuffers, uint32_t imageIndex, VkPipeline graphicsPipeline, VkBuffer vertexBuffer, const std::vector<vertex> vertices);
-        
-        std::vector<VkCommandBuffer>& get_command_buffers() {return commandBuffers;}
-        private:
-        VkCommandPool commandPool;
-        std::vector<VkCommandBuffer> commandBuffers;
+class CommandPool {
+    public:
+        CommandPool();
+        CommandPool(Device& device);
+        CommandPool(const CommandPool& command_pool);
+        CommandPool(CommandPool&& command_pool) noexcept;
+        CommandPool& operator=(const CommandPool& command_pool);
+        CommandPool& operator=(CommandPool&& command_pool) noexcept;
+        ~CommandPool();
+        void create(Device& device);
+        VkCommandPool& get() { return _command_pool; }
 
-        VkPhysicalDevice& physicalDevice;
-        VkDevice& device;
-        VkSurfaceKHR& surface;
-    };
+    private:
+        VkCommandPool _command_pool;
+        Device* _device;
+};
+class CommandBuffer {
+    public:
+        CommandBuffer();
+        CommandBuffer(Device& device, CommandPool& command_pool, VkCommandBufferLevel level);
+        void create(Device& device, CommandPool& command_pool, VkCommandBufferLevel level);
+        void begin(VkCommandBufferUsageFlags usage);
+        void end();
+        void submit(std::vector<Semaphore>* wait, std::vector<Semaphore>* signal, Fence fence, VkPipelineStageFlags* wait_dst_stage);
+        void reset();
+        //secondary coming soon
+        VkCommandBuffer& get() { return _command_buffer; }
+
+    private:
+        VkCommandBuffer _command_buffer;
+
+        Device* _device;
+};
+
+//command wrappers for VkCmd*s coming soom
 }
