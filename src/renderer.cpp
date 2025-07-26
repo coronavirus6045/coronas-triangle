@@ -1,11 +1,15 @@
 #include "renderer.hpp"
 #include <thread>
 
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+
+
 void Renderer::boot() {
     SDL_Event event;
 
     while (!feel_like_it_wants_to_exit) {
         while (SDL_PollEvent(&event) != 0) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) {
                 feel_like_it_wants_to_exit = true;
             }
@@ -25,7 +29,13 @@ void Renderer::boot() {
             continue;
         }
 
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+
         draw();
+
     }
 
     cleanup();
@@ -341,16 +351,14 @@ void Renderer::initialize() {
     _image_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
     _main_fence.resize(MAX_FRAMES_IN_FLIGHT);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-
         _image_semaphore[i] = _sync_object_maker->create_semaphore();
         _main_fence[i] = _sync_object_maker->create_fence();
     }
     for (uint32_t i = 0; i < _swapchain_images.size(); i++) {
-
         _render_semaphore[i] = _sync_object_maker->create_semaphore();
-
-    //_uniform_buffer.clear();
     }
+    //_uniform_buffer.clear();
+        setup_imgui();
 }
 
 void Renderer::draw() {
@@ -413,6 +421,9 @@ void Renderer::draw() {
     vkCmdBindDescriptorSets(_main_command_buffer[_frame_index].get(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline_layout->get(), 0, 1, &_descriptor_set[_frame_index].get(), 0, nullptr);
 
     vkCmdDrawIndexed(_main_command_buffer[_frame_index].get(), _indices.size(), 1, 0, 0, 0);
+
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), _main_command_buffer[_frame_index].get());
 
     vkCmdEndRenderPass(_main_command_buffer[_frame_index].get());
 
@@ -491,6 +502,34 @@ HelloTriangle::Image Renderer::load_image_from_file(std::string path) {
     return image;
 }
 
+void Renderer::setup_imgui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui_ImplSDL2_InitForVulkan(_window);
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = _instance->get();
+    init_info.PhysicalDevice = _device->get_physical_device();
+    init_info.Device = _device->get_device();
+    init_info.QueueFamily = _device->get_queue_family();
+    init_info.Queue = _device->get_graphics_queue();
+    init_info.PipelineCache = nullptr;
+    init_info.DescriptorPool = _descriptor_pool->get();
+    init_info.RenderPass = _main_pass->get();
+    init_info.Subpass = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = 2;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.Allocator = nullptr;
+    //init_info.CheckVkResultFn = [] (VkResult res) { if (res != VK_SUCCESS) {THROW_RUNTIME_ERROR("ImGui had a problem.")} };
+
+    //ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_2, [](const char* function_name, void* vk_instance) { return vkGetInstanceProcAddr((VkInstance) vk_instance, function_name); }, _instance->get());
+    ImGui_ImplVulkan_Init(&init_info);
+}
+
 void Renderer::cleanup() {
     //this is when you will use smart pointers
 
@@ -521,6 +560,10 @@ void Renderer::cleanup() {
     delete _index_buffer;
 
     _uniform_buffer.clear();
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 
     delete _device;
     delete _instance;

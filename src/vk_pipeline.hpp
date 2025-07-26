@@ -6,6 +6,9 @@
 #include "vk_presentation.hpp"
 #include "vk_shader.hpp"
 
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+
+
 namespace HelloTriangle {
 typedef VkPipeline PipelineHandle; //this feels stupid
 // we do it in a SINGLE struct

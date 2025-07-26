@@ -1,2 +1,4 @@
 #define VOLK_IMPLEMENTATION
-#include "volk/volk.h"
+#include <volk.h>
+
+#define IMGUI_IMPL_VULKAN_USE_VOLK

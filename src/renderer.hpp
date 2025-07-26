@@ -12,12 +12,17 @@
 #include "vk_descriptor.hpp"
 #include "scene/scene_obj.hpp"
 
+// Third-party
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_vulkan.h>
+
+//#define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
+#define IMGUI_IMPL_VULKAN_USE_VOLK
 
 //We include vk_image later
 
 //this is the master renderer class that will do all the work
-
-//NEED TO BRING BACK VERTEX ATTRIBUTE AND5 BINDING DESC AND ALSO DO RULE OF 3
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -31,6 +36,7 @@ class Renderer {
         void swapchain_resize();
         void uniform_update(VkExtent2D extent);
         HelloTriangle::Image load_image_from_file(std::string path);
+        void setup_imgui();
         void cleanup();
         VkExtent2D window_size_to_extent();
     private:

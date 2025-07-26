@@ -11,6 +11,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+
 
 namespace HelloTriangle {
 // We'll use VMA later

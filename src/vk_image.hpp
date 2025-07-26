@@ -6,6 +6,8 @@
 #include "vk_presentation.hpp"
 #include "vk_device.hpp"
 #include <vulkan/vulkan_core.h>
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+
 
 namespace HelloTriangle {
 class Image {
@@ -27,7 +29,7 @@ class Image {
         Image(Swapchain& swapchain, uint32_t index);
         ~Image();
         //hope default works
-        //Image(const Image& image) = default;
+        Image(const Image& image) = default;
         Image(Image&& image) noexcept;
         // who cares about copying, use shared_ptr instead for vectors like a real chad
         //Image& operator=(const Image& image) = default;

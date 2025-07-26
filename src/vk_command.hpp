@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+
 
 namespace HelloTriangle {
 class CommandPool {

@@ -4,6 +4,7 @@
 #include "vk_instance.hpp"
 
 
+#define IMGUI_IMPL_VULKAN_USE_VOLK
 
 
 namespace HelloTriangle {

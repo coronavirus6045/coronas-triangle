@@ -8,9 +8,13 @@
 
 #include "third_party/stb/stb_image.h"
 #define VK_NO_PROTOTYPES
-#include "third_party/volk/volk.h"
+#include <volk.h>
 #include "third_party/VulkanMemoryAllocator/include/vk_mem_alloc.h"
 
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_vulkan.h>
+#define IMGUI_IMPL_VULKAN_USE_VOLK
 
 #include <fmt/core.h>
 
