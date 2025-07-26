@@ -1,9 +1,6 @@
 #include "renderer.hpp"
 #include <thread>
 
-#define IMGUI_IMPL_VULKAN_USE_VOLK
-
-
 void Renderer::boot() {
     SDL_Event event;
 
@@ -517,7 +514,8 @@ void Renderer::setup_imgui() {
     init_info.QueueFamily = _device->get_queue_family();
     init_info.Queue = _device->get_graphics_queue();
     init_info.PipelineCache = nullptr;
-    init_info.DescriptorPool = _descriptor_pool->get();
+    init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
+    init_info.DescriptorPool = nullptr;
     init_info.RenderPass = _main_pass->get();
     init_info.Subpass = 0;
     init_info.MinImageCount = 2;
@@ -526,7 +524,7 @@ void Renderer::setup_imgui() {
     init_info.Allocator = nullptr;
     //init_info.CheckVkResultFn = [] (VkResult res) { if (res != VK_SUCCESS) {THROW_RUNTIME_ERROR("ImGui had a problem.")} };
 
-    //ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_2, [](const char* function_name, void* vk_instance) { return vkGetInstanceProcAddr((VkInstance) vk_instance, function_name); }, _instance->get());
+    ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_2, [](const char* function_name, void* vk_instance) { return vkGetInstanceProcAddr((VkInstance) vk_instance, function_name); }, _instance->get());
     ImGui_ImplVulkan_Init(&init_info);
 }
 

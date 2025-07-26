@@ -12,4 +12,4 @@ deps = [dependency('dl'),
        
 ]
 
-executable('vktest', sources, dependencies: deps, include_directories : includes)
+executable('vktest', sources, dependencies: deps, include_directories : includes, cpp_args : '-DIMGUI_IMPL_VULKAN_USE_VOLK')

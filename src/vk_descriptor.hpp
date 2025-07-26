@@ -6,8 +6,6 @@
 #include "vk_image.hpp"
 #include <vulkan/vulkan_core.h>
 
-#define IMGUI_IMPL_VULKAN_USE_VOLK
-
 //namespace ctBackend
 namespace HelloTriangle {
 struct DescriptorBinding {

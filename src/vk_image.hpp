@@ -6,8 +6,6 @@
 #include "vk_presentation.hpp"
 #include "vk_device.hpp"
 #include <vulkan/vulkan_core.h>
-#define IMGUI_IMPL_VULKAN_USE_VOLK
-
 
 namespace HelloTriangle {
 class Image {

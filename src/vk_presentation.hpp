@@ -5,8 +5,6 @@
 #include "vk_device.hpp"
 #include "vk_syncobjects.hpp"
 
-#define IMGUI_IMPL_VULKAN_USE_VOLK
-
 namespace HelloTriangle {
     class Swapchain {
     public:

@@ -3,7 +3,6 @@
 #include "common.hpp"
 #include "vk_instance.hpp"
 #include <vulkan/vulkan_core.h>
-#define IMGUI_IMPL_VULKAN_USE_VOLK
 
 namespace HelloTriangle {
 //Device holds both vk physical device and device.

@@ -2,9 +2,6 @@
 
 #include "common.hpp"
 #include "vk_device.hpp"
-#define IMGUI_IMPL_VULKAN_USE_VOLK
-
-
 
 namespace HelloTriangle {
 class Shader {
