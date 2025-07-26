@@ -1,0 +1,12 @@
+[submodule "src/third_party/VulkanMemoryAllocator"]
+	path = src/third_party/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "src/third_party/stb"]
+	path = src/third_party/stb
+	url = https://github.com/nothings/stb.git
+[submodule "src/third_party/imgui"]
+	path = src/third_party/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "src/third_party/volk"]
+	path = src/third_party/volk
+	url = https://github.com/zeux/volk.git
